@@ -114,7 +114,7 @@ def main(event, context):
     lower_threshold = float(event['lower_threshold'])
     changing_rate = float(event['changing_rate'])
 
-    print(source_node, dest_node)
+    print("Processing ", source_node, dest_node)
     res = filter_data(source_node, dest_node, upper_threshold, 
             lower_threshold, changing_rate)
     if(res == 1):

@@ -6,12 +6,10 @@ from botocore.vendored.requests.exceptions import ConnectionError
 import json
 import io
 from datetime import datetime
-import logging as log
+import logging 
 
-
-
-
-
+log = logging.getLogger()
+log.setLevel(logging.INFO)
 
 class eagleFilter():
     # Historic eagle io url API
@@ -27,7 +25,9 @@ class eagleFilter():
     DIRECTORY = 'filterdata'
 
     # Set up logger
-    log.basicConfig(level=log.WARNING)
+    #log.basicConfig(level=log.WARNING)
+    log = logging.getLogger()
+    log.setLevel(logging.INFO)
 
     # A simple call to upload a file to S3 storage
     def uploadDataAWSJSON(self,bucket_name, directory, filename):
@@ -242,14 +242,14 @@ class eagleFilter():
     def updateData(self,node,data):
         #make sure to use write API key
         headers = {'X-Api-Key': 'lKTpXokuT0Plrin0GakpbSa1fKeftTP5Lk5rZeVo','Content-Type':'application/json'}
-        #node = "5ca2a9604c52c40f17064dbsdfsd0"
+        node = "5ca2a9604c52c40f17064dbsdfsd0"
         params = {'params': node + '(columnIndex:0)'}
 
         try:
             
             result = requests.put(self.HISTORIC_API, data=data, headers=headers, params=params, timeout=2.0)
             if(result.ok != True):
-                log.warning("Data could not be uploaded, put returned with error code %s: %s.", 
+                log.info("Data could not be uploaded, put returned with error code %s: %s.", 
                     json.loads(result.text).get('error').get('code'), 
                     json.loads(result.text).get('error').get('message'))
          

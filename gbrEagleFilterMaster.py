@@ -13,6 +13,8 @@ def main(event, context):
     except Exception as e:
         log.error("There was an error in importing the node settings file.")
         print(e)
+        # this shouldn't cause a retry buck check
+        return 
         
     #client = boto3.client('lambda', region_name='ap-southeast-2')
     client = boto3.client('sns', region_name='ap-southeast-2')
