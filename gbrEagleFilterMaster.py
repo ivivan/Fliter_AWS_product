@@ -1,16 +1,21 @@
-'''
-Master filter for intantiating eagleFilter
-'''
 from eagleFilter import eagleFilter as eagle
 import boto3
 import json
+import logging as log
 
 def main(event, context):
+     log.basicConfig(level=log.INFO)
+      
     #get all node from S3
     ea = eagle()
-    nodes = ea.getFileAWSJSON('digiscapegbr', 'filterSettings', 'filterSettings.json')["nodes"]
-
-    client = boto3.client('lambda', region_name='ap-southeast-2')
+    try:
+        nodes = ea.getFileAWSJSON('digiscapegbr', 'filterSettings', 'filterSettings.json')["nodes"]
+    except Exception as e:
+        log.error("There was an error in importing the node settings file.")
+        print(e)
+        
+    #client = boto3.client('lambda', region_name='ap-southeast-2')
+    client = boto3.client('sns', region_name='ap-southeast-2')
     for node in nodes:
         # set perams, src, dst, threshold, rate
         settings = {}
@@ -22,16 +27,10 @@ def main(event, context):
         settings['changing_rate'] = node['changingRate']
         # invoke lambda using these 
             # just invokin giflterdata is fine
-        print(settings} 
-        try: 
-            client.invoke(FunctionName='gbrEagleFilterNode', InvocationType='DryRun', Payload=json.dumps(settings))
-        except Exception as e:
-            print("There was an error in importing the node settings file")
-            raise e # FileNotFoundError("There was an error in importing the node settings file")
-            '''
-            options:
-                raise an exception ( can I just raise e)
-                let it raise whather exception and log
-                -> can't really try anything else here
-            '''
-            
+        
+        message = json.dumps(settings)
+        print(message)
+        
+        #client.invoke(FunctionName='gbrEagleFilterNode', InvocationType='DryRun', Payload=json.dumps(settings))
+        r = client.publish(TopicArn='arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate', Message=message)
+        print(r)

@@ -2,12 +2,12 @@
 Filters the provided node by provided parameters
 Used in gbrEagleFilterNode
 '''
-
 import numpy as np
 from eagleFilter import eagleFilter as eagle
 import json
+import logging as log
 
-"""Function that takes the node, loads data and runs both filters on it"""
+"""takes the node, loads data and runs both filters on it"""
 def run_filter(input_data, upper_threhold, lower_threhold, changing_rate):
     # Directly from lambda_function.py
     # apply threshold filter
@@ -43,7 +43,7 @@ def run_filter(input_data, upper_threhold, lower_threhold, changing_rate):
 
     return f
 
-""" function that gets data from eagle io and if there is new data filters it
+""" gets data from eagle io and if there is new data filters it
 and reuloads it 
 
 Could have this in run filter or in the filter loop but not sure where so 
@@ -80,6 +80,15 @@ def filter_data(source_node, dest_node, upper_threhold, lower_threhold, changing
     return 0
 
 def main(event, context):
+    log.basicConfig(level=log.INFO)
+
+    ''' only required for sns '''
+    payload = event['Records'][0]['Sns']['Message']
+    log.info(payload)
+    log.info(type(payload))
+    event = json.loads(payload)
+    ''' '''
+
     source_node = event['source_node']
     dest_node = event['dest_node']
     upper_threshold = event['upper_threshold']
@@ -96,7 +105,6 @@ def main(event, context):
             }
     
         return response
-
 
 if __name__ == "__main__":
     main()
