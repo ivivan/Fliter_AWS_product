@@ -104,15 +104,22 @@ class eagleFilter():
 
 
         jsonData = requests.get(self.data_api+node, headers=headers).json()
-        log.info(jsonData)
+        
         if(jsonData.get('error') != None):
             raise(Exception("Error %s in loading Eagle stream metadata: %s." % 
                         (jsonData['error'].get('code'), 
                         jsonData['error'].get('message'))))
 
+        print("Time %s value %s" %(jsonData.get('currentTime'), jsonData.get('currentValue')))
 
         if jsonData['currentValue'] == None:
             currentTime = datetime(2016,1,1) 
+            prevTime = None
+            oldestTime = None
+            obsInterval = None
+        if jsonData.get('currentTime') == None and jsonData.get('createdTime') != None:
+            print("Assigned date")
+            currentTime = 0# datetime.strptime(jsonData['createdTime'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(microsecond=0)
             prevTime = None
             oldestTime = None
             obsInterval = None
