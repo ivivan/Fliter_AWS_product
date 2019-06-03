@@ -4,7 +4,7 @@ import json
 import logging as log
 
 def main(event, context):
-     log.basicConfig(level=log.INFO)
+    log.basicConfig(level=log.INFO)
       
     #get all node from S3
     ea = eagle()

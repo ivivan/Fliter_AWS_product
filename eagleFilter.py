@@ -6,6 +6,7 @@ from botocore.vendored.requests.exceptions import ConnectionError
 import json
 import io
 from datetime import datetime
+import logging as log
 
 
 
@@ -24,6 +25,9 @@ class eagleFilter():
     # AWS S3 storage default bucket and folder informtaion
     BUCKET_NAME = 'digiscapegbr'
     DIRECTORY = 'filterdata'
+
+    # Set up logger
+    log.basicConfig(level=log.WARNING)
 
     # A simple call to upload a file to S3 storage
     def uploadDataAWSJSON(self,bucket_name, directory, filename):
@@ -100,11 +104,15 @@ class eagleFilter():
 
 
         jsonData = requests.get(self.data_api+node, headers=headers).json()
-        
+        log.info(jsonData)
+        if(jsonData.get('error') != None):
+            raise(Exception("Error %s in loading Eagle stream metadata: %s." % 
+                        (jsonData['error'].get('code'), 
+                        jsonData['error'].get('message'))))
 
 
         if jsonData['currentValue'] == None:
-            currentTime = datetime(2016,1,1)
+            currentTime = datetime(2016,1,1) 
             prevTime = None
             oldestTime = None
             obsInterval = None
@@ -115,7 +123,6 @@ class eagleFilter():
             # jsonData['previousTime'] = '2016-01-01T00:00:00.000Z'
             # jsonData['oldestTime'] = '2016-01-01T00:00:00.000Z'
             
-
             
             currentTime = datetime.strptime(jsonData['currentTime'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(microsecond=0)
             prevTime = datetime.strptime(jsonData['previousTime'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(microsecond=0)
@@ -163,6 +170,10 @@ class eagleFilter():
             for i in range(0,3):
                 hist_values = requests.get(self.HISTORIC_API, headers=headers, params=params).json()
                 if len(hist_values) > 0:
+                    if(hist_values.get('error') != None):
+                         raise(Exception("Error %s in loading Eagle historical data: %s." % 
+                                (hist_values['error'].get('code'), 
+                                hist_values['error'].get('message'))))
                     break
 
         except ConnectionError as e :
