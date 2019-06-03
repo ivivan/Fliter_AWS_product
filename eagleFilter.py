@@ -104,37 +104,47 @@ class eagleFilter():
 
 
         jsonData = requests.get(self.data_api+node, headers=headers).json()
-        
         if(jsonData.get('error') != None):
             raise(Exception("Error %s in loading Eagle stream metadata: %s." % 
                         (jsonData['error'].get('code'), 
                         jsonData['error'].get('message'))))
 
-        print("Time %s value %s" %(jsonData.get('currentTime'), jsonData.get('currentValue')))
+        #print("Time %s value %s" %(jsonData.get('currentTime'), jsonData.get('currentValue')))
 
-        if jsonData['currentValue'] == None:
-            currentTime = datetime(2016,1,1) 
-            prevTime = None
-            oldestTime = None
-            obsInterval = None
-        if jsonData.get('currentTime') == None and jsonData.get('createdTime') != None:
-            print("Assigned date")
-            currentTime = 0# datetime.strptime(jsonData['createdTime'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(microsecond=0)
-            prevTime = None
-            oldestTime = None
-            obsInterval = None
-        else:
-            
-            # test
-            # jsonData['currentTime'] = '2016-01-01T00:00:00.000Z'
-            # jsonData['previousTime'] = '2016-01-01T00:00:00.000Z'
-            # jsonData['oldestTime'] = '2016-01-01T00:00:00.000Z'
-            
-            
+        try:
             currentTime = datetime.strptime(jsonData['currentTime'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(microsecond=0)
             prevTime = datetime.strptime(jsonData['previousTime'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(microsecond=0)
             oldestTime = datetime.strptime(jsonData['oldestTime'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(microsecond=0)
             obsInterval = currentTime - prevTime
+        except:
+            
+            currentTime = 0
+            prevTime = None
+            oldestTime = None
+            obsInterval = None
+
+        # if jsonData['currentValue'] == None:
+        #     currentTime = datetime(2016,1,1) 
+        #     prevTime = None
+        #     oldestTime = None
+        #     obsInterval = None
+        # if jsonData.get('currentTime') == None and jsonData.get('createdTime') != None:
+        #     print("Assigned date")
+        #     currentTime = 0# datetime.strptime(jsonData['createdTime'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(microsecond=0)
+        #     prevTime = None
+        #     oldestTime = None
+        #     obsInterval = None
+        # else:
+        #     # test
+        #     # jsonData['currentTime'] = '2016-01-01T00:00:00.000Z'
+        #     # jsonData['previousTime'] = '2016-01-01T00:00:00.000Z'
+        #     # jsonData['oldestTime'] = '2016-01-01T00:00:00.000Z'
+            
+            
+        #     currentTime = datetime.strptime(jsonData['currentTime'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(microsecond=0)
+        #     prevTime = datetime.strptime(jsonData['previousTime'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(microsecond=0)
+        #     oldestTime = datetime.strptime(jsonData['oldestTime'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(microsecond=0)
+        #     obsInterval = currentTime - prevTime
 
 
         returnData = { 'oldestTime':oldestTime, 'currentTime':currentTime,
@@ -147,6 +157,11 @@ class eagleFilter():
         headers = {'X-Api-Key': 'GBBbwpSHH54zF58e7Xwp25zFUZ8xJ5c3TxHUff1B'}
 
         jsonData = requests.get(self.data_api + node, headers=headers).json()
+        if(jsonData.get('error') != None):
+            raise(Exception("Error %s in loading Eagle stream data: %s." % 
+                        (jsonData['error'].get('code'), 
+                        jsonData['error'].get('message'))))
+
 
         currentTime = jsonData['currentTime']
         prevTime = jsonData['previousTime']
@@ -161,9 +176,6 @@ class eagleFilter():
         data = []
 
         #Get utc representation
-
-
-
 
         params = {'startTime':startTime.strftime('%Y-%m-%dT%H:%M:%SZ'), \
                   'endTime':endTime.strftime('%Y-%m-%dT%H:%M:%SZ'),
@@ -230,12 +242,17 @@ class eagleFilter():
     def updateData(self,node,data):
         #make sure to use write API key
         headers = {'X-Api-Key': 'lKTpXokuT0Plrin0GakpbSa1fKeftTP5Lk5rZeVo','Content-Type':'application/json'}
-
+        #node = "5ca2a9604c52c40f17064dbsdfsd0"
         params = {'params': node + '(columnIndex:0)'}
 
         try:
-
+            
             result = requests.put(self.HISTORIC_API, data=data, headers=headers, params=params, timeout=2.0)
+            if(result.ok != True):
+                log.warning("Data could not be uploaded, put returned with error code %s: %s.", 
+                    json.loads(result.text).get('error').get('code'), 
+                    json.loads(result.text).get('error').get('message'))
+         
 
 
         except ConnectionError as e:
@@ -254,6 +271,11 @@ class eagleFilter():
         try:
 
             result = requests.put(self.data_api, data=metadata, headers=headers, timeout=2.0)
+            if(result.ok != True):
+                log.warning("Metadata could not be uploaded, put returned with error code %s: %s.", 
+                    json.loads(result.text).get('error').get('code'), 
+                    json.loads(result.text).get('error').get('message'))
+         
 
 
         except ConnectionError as e:

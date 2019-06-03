@@ -25,7 +25,6 @@ def run_filter(input_data, upper_threhold, lower_threhold, changing_rate):
     # linear interpolation to remove NAN
     mask = np.isnan(input_data_filtered)
     input_data_filtered[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), input_data_filtered[~mask])
-
     # Changing rate filter
     # filtered data is replaced by NAN
     diff_index = np.diff(input_data_filtered)
@@ -61,10 +60,16 @@ def filter_data(source_node, dest_node, upper_threhold, lower_threhold, changing
     source_metadata = ea.getLocationMetadata(source_node)
     dest_metadata = ea.getLocationMetadata(dest_node)
     # what do these look like?
-    print(source_metadata)
-    print("Here", dest_metadata['currentTime'],  source_metadata['currentTime'])
+    #print(source_metadata)
+
+    # check if flag for empty stream is set
+    if(source_metadata['currentTime'] == 0):
+        log.warning("No data in source node. No filtering.")
+        return 0
+   
     if(dest_metadata['currentTime'] == 0):
-        print(" waz sero setting to ",  source_metadata['oldestTime'])
+        # use all of the available data
+        log.warning("Empty time fields in destination node, requesting all source data.")
         dest_metadata['currentTime'] = source_metadata['oldestTime']
 
     # check that there is new data
@@ -73,19 +78,23 @@ def filter_data(source_node, dest_node, upper_threhold, lower_threhold, changing
         start_time =  dest_metadata['currentTime']
         finish_time = source_metadata['currentTime']
         data = ea.getData(source_node, start_time, finish_time)
-        print("Here", data[1:10], start_time, finish_time)
 
         # format data
-        input_data = np.asarray(data)[:,1]     
+        input_data = np.asarray(data)[:,1]   
+        
         input_data = input_data.astype(float)
 
+        #all new data is nan so no filtering occurs
+        if(np.isnan(input_data).all()):
+            return 0
+        
+        
         # run all realtime filters
         filtered_data = run_filter(input_data, upper_threhold, lower_threhold, changing_rate)
         # Create JTS JSON time series of filtered data       
         ts = ea.createTimeSeriesJSON(data,filtered_data)
         # update destination on Eagle with filtered data
         res = ea.updateData(dest_node, ts)
-
         return 1
     return 0
 
