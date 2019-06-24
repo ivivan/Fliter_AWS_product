@@ -7,6 +7,7 @@ from eagleFilter import eagleFilter as eagle
 import json
 import logging as log
 from datetime import datetime, timedelta
+from itertools import count, groupby
 
 FILTER_MIN_WINDOW = 10 #days
 
@@ -48,30 +49,51 @@ def run_filter(input_data, upper_threhold, lower_threhold, changing_rate):
     mask = mask_nan(mask,5) # change n to change size of uninterpolated consective nan
     #print("b",np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), input_data_filtered[~mask]))
     input_data_filtered[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), input_data_filtered[~mask])
-    # Changing rate filter
+
+    # Changing rate filter - spliced
     # filtered data is replaced by NAN
-    diff_index = np.diff(input_data_filtered)
-    
-    # comparison will by default give runtime error and set comparison w nan to false
-    # but if we set these to false, it should still remain NAN and get caught when setting the second mask
-    # to avoid warning just check non-nan valuse for changing rate
-    # mask_diff = ~np.isnan(diff_index)
-    # mask_diff[mask_diff] &= (abs(diff_index[mask_diff])>changing_rate)
-    
-    mask_diff = np.greater(abs(diff_index), changing_rate, where=~np.isnan(diff_index))
-    mask_diff = np.insert(mask_diff, 0, False)
-    
+    # find intervals of non-nan data
+    print("any nans ", np.any(np.isnan(input_data_filtered)))
+    indecies = np.asarray(np.argwhere(~np.isnan(input_data_filtered)))[:,0]
+    ranges = [] # will be an array of start and end index for non nan blocks
+    for v,g in groupby(indecies, lambda n, c=count(): n-next(c)):
+        k = list(g)
+        ranges.append([k[0], k[-1]+1])
+    print(ranges)
+
     input_data_filtered_seocnd = input_data_filtered.copy()
-    input_data_filtered_seocnd[mask_diff] = np.NAN
-    # nan change rate problem
-    # print(input_data_filtered[20:30])
-    # print(diff_index[20:30])
+
+    for i in range(0, len(ranges)):
+        print("processing range ", i)
+        data = input_data_filtered[ranges[i][0]:ranges[i][1]]
+        diff_index = np.diff(data)
+
+        mask_diff = np.greater(abs(diff_index), changing_rate, where=~np.isnan(diff_index))
+        mask_diff = np.insert(mask_diff, 0, False)
+        print(mask_diff)
+        data_seocnd = data.copy()
+        data_seocnd[mask_diff] = np.NAN
+
+        # interpolate
+        # linear interpolation to remove NAN
+        mask = np.isnan(data_seocnd) #is necessary because some NAN values not from changing rage mask
+        mask = mask_nan(mask,5)
+        data_seocnd[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), data_seocnd[~mask])
+        input_data_filtered_seocnd[ranges[i][0]:ranges[i][1]] = data_seocnd
+
+    # diff_index = np.diff(input_data_filtered)
     
-    # interpolate
-    # linear interpolation to remove NAN
-    mask = np.isnan(input_data_filtered_seocnd) #is necessary because some NAN values not from changing rage mask
-    mask = mask_nan(mask,5)
-    input_data_filtered_seocnd[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), input_data_filtered_seocnd[~mask])
+    # mask_diff = np.greater(abs(diff_index), changing_rate, where=~np.isnan(diff_index))
+    # mask_diff = np.insert(mask_diff, 0, False)
+    
+    # input_data_filtered_seocnd = input_data_filtered.copy()
+    # input_data_filtered_seocnd[mask_diff] = np.NAN
+
+    # # interpolate
+    # # linear interpolation to remove NAN
+    # mask = np.isnan(input_data_filtered_seocnd) #is necessary because some NAN values not from changing rage mask
+    # mask = mask_nan(mask,5)
+    # input_data_filtered_seocnd[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), input_data_filtered_seocnd[~mask])
     
 
     # may be unneccesary 
@@ -113,7 +135,7 @@ def filter_data(source_node, dest_node, upper_threhold, lower_threhold, changing
         finish_time = source_metadata['currentTime']
        
         data = ea.getData(source_node, start_time, finish_time)
-        #print(start_time, finish_time, len(data), "; time_dif: ", start_time-finish_time, data[0])
+        print("Filtering: ", start_time, finish_time, len(data), "; time_dif: ", start_time-finish_time, data[0])
 
         # format data
         input_data = np.asarray(data)[:,1]   
@@ -133,7 +155,6 @@ def filter_data(source_node, dest_node, upper_threhold, lower_threhold, changing
         # Create JTS JSON time series of filtered data       
         ts = ea.createTimeSeriesJSON(data,filtered_data)
         # update destination on Eagle with filtered data
-        print(ts)
         res = ea.updateData(dest_node, ts)
         return 1
     return 0
@@ -177,7 +198,7 @@ if __name__ == "__main__":
     testEvent = {'Records': [{'EventSource': 'aws:sns', 
                 'EventVersion': '1.0', 'EventSubscriptionArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'Sns': {'Type': 'Notification', 'MessageId': 'bc85683f-2efc-50c6-8314-3d51aff722d2', 'TopicArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate', 
                 'Subject': None, 
-                'Message': '{"source_node": "5b177a5de4b05e726c7eeecc", "dest_node": "5ca2a9604c52c40f17064db0",  "upper_threshold": "2", "lower_threshold": "0.02", "changing_rate": "0.5"}', 
+                'Message': '{"source_node": "5b177a5de4b05e726c7eeecc", "dest_node": "5ca2a9604c52c40f17064db0",  "upper_threshold": "2", "lower_threshold": "0.02", "changing_rate": "0.05"}', 
                 'Timestamp': '2019-06-03T01:58:35.515Z', 'SignatureVersion': '1', 'Signature': 'MD2dPjKLTGTijU1s+vPuE699sSM7vquQHQFpVBtqECLEX+4psmZeT7oAMSZY5yCAtS2QKesiE4/lR9ezBENfmmTy/TrWyqguyY+4RO121nzlMWN3FN/IPdbNJU2yvsYby7//PwIJDvgN2KgoAhZPoW92bJtFAxOlMKmnNSsfCPM7lH0FF4M2pyvmzbyauFoFhJfdr0hRWfcPnmmMSusr8rc9Y0wdEtR37qexQ99GR8w2KWMZE8VWPNc8ZdXSeE3sLv7floxaxCIqWcS3nm6pJiN/B0YzDBIJvVEIa492qKm8lPd34MCRG6lLH05VJw3KwkOQLbabpJoP43lKhDZdkQ==', 'SigningCertUrl': 'https://sns.ap-southeast-2.amazonaws.com/SimpleNotificationService-6aad65c2f9911b05cd53efda11f913f9.pem', 'UnsubscribeUrl': 'https://sns.ap-southeast-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'MessageAttributes': {}}}]}
     
     main(testEvent, None)
