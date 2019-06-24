@@ -219,7 +219,7 @@ class eagleFilter():
             #make sure to check for NaN
             if not math.isnan(filteredData[i] ):
                 #Format in JTS
-                v = {"ts": origData[i][0]+'Z', "f":{"0":{"v": filteredData[i]}}}
+                v = {"ts": origData[i][0]+'Z', "f":{"0":{"v": filteredData[i]}}} # add "q": quality[i]
                 data.append(v)
         #Construct timeseries for loading
         ts = {"docType": "jts",

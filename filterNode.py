@@ -133,6 +133,7 @@ def filter_data(source_node, dest_node, upper_threhold, lower_threhold, changing
         # Create JTS JSON time series of filtered data       
         ts = ea.createTimeSeriesJSON(data,filtered_data)
         # update destination on Eagle with filtered data
+        print(ts)
         res = ea.updateData(dest_node, ts)
         return 1
     return 0
