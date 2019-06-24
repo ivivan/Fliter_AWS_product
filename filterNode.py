@@ -2,15 +2,34 @@
 Filters the provided node by provided parameters
 Used in gbrEagleFilterNode
 '''
-'''
-Filters the provided node by provided parameters
-Used in gbrEagleFilterNode
-'''
 import numpy as np
 from eagleFilter import eagleFilter as eagle
 import json
 import logging as log
-from datetime import datetime
+from datetime import datetime, timedelta
+
+FILTER_MIN_WINDOW = 10 #days
+
+""" Sets values to False if there are more than n consecutive True values
+    This allows for us to interpolate only the NAN values in the data where there 
+        are fewer than n consecutive NANs, only True values in the mask are interpolated """
+# appear to be working but could test better
+# this could very likely be more efficient
+def mask_nan(mask, n):
+    #print(mask)
+    i=0
+    while i<(len(mask)-n):
+        if((mask[i:i+n]==True).all()):
+            mask[i:i+n]=False
+            i+=(n)
+            while(mask[i]==True):
+                mask[i] = False
+                i+=1
+        else:
+            i+=1
+
+    #print(mask) 
+    return mask  
 
 """takes the node, loads data and runs both filters on it"""
 def run_filter(input_data, upper_threhold, lower_threhold, changing_rate):
@@ -23,21 +42,35 @@ def run_filter(input_data, upper_threhold, lower_threhold, changing_rate):
     
     # interpolate
     # linear interpolation to remove NAN
+    
     mask = np.isnan(input_data_filtered)
+    #print("a",np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), input_data_filtered[~mask]))
+    mask = mask_nan(mask,5) # change n to change size of uninterpolated consective nan
+    #print("b",np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), input_data_filtered[~mask]))
     input_data_filtered[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), input_data_filtered[~mask])
     # Changing rate filter
     # filtered data is replaced by NAN
     diff_index = np.diff(input_data_filtered)
     
-    mask_diff = (abs(diff_index)>changing_rate)
+    # comparison will by default give runtime error and set comparison w nan to false
+    # but if we set these to false, it should still remain NAN and get caught when setting the second mask
+    # to avoid warning just check non-nan valuse for changing rate
+    # mask_diff = ~np.isnan(diff_index)
+    # mask_diff[mask_diff] &= (abs(diff_index[mask_diff])>changing_rate)
+    
+    mask_diff = np.greater(abs(diff_index), changing_rate, where=~np.isnan(diff_index))
     mask_diff = np.insert(mask_diff, 0, False)
     
     input_data_filtered_seocnd = input_data_filtered.copy()
     input_data_filtered_seocnd[mask_diff] = np.NAN
+    # nan change rate problem
+    # print(input_data_filtered[20:30])
+    # print(diff_index[20:30])
     
     # interpolate
     # linear interpolation to remove NAN
-    mask = np.isnan(input_data_filtered_seocnd)
+    mask = np.isnan(input_data_filtered_seocnd) #is necessary because some NAN values not from changing rage mask
+    mask = mask_nan(mask,5)
     input_data_filtered_seocnd[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), input_data_filtered_seocnd[~mask])
     
 
@@ -56,6 +89,7 @@ having seperate
 def filter_data(source_node, dest_node, upper_threhold, lower_threhold, changing_rate):
     # get input data from node and convert
     ea = eagle()
+    global FILTER_MIN_WINDOW
 
     source_metadata = ea.getLocationMetadata(source_node)
     dest_metadata = ea.getLocationMetadata(dest_node)
@@ -75,9 +109,11 @@ def filter_data(source_node, dest_node, upper_threhold, lower_threhold, changing
     # check that there is new data
     if dest_metadata['currentTime'] < source_metadata['currentTime']:
         # get all new data
-        start_time =  dest_metadata['currentTime']
+        start_time =  dest_metadata['currentTime'] - timedelta(days=FILTER_MIN_WINDOW)
         finish_time = source_metadata['currentTime']
+       
         data = ea.getData(source_node, start_time, finish_time)
+        #print(start_time, finish_time, len(data), "; time_dif: ", start_time-finish_time, data[0])
 
         # format data
         input_data = np.asarray(data)[:,1]   
@@ -91,6 +127,9 @@ def filter_data(source_node, dest_node, upper_threhold, lower_threhold, changing
         
         # run all realtime filters
         filtered_data = run_filter(input_data, upper_threhold, lower_threhold, changing_rate)
+        # print(input_data)
+        # print("-----")
+        # print(np.array(filtered_data))
         # Create JTS JSON time series of filtered data       
         ts = ea.createTimeSeriesJSON(data,filtered_data)
         # update destination on Eagle with filtered data
@@ -130,14 +169,14 @@ if __name__ == "__main__":
                 "source_node": "5b177a5de4b05e726c7eeecc",
                 "dest_node": "5ca2a9604c52c40f17064dafa",
                 "upper_threshold": 2,
-                "lower_threshold": 0,
+                "lower_threshold": 1,
                 "changing_rate": 0.5
                 }
 
     testEvent = {'Records': [{'EventSource': 'aws:sns', 
                 'EventVersion': '1.0', 'EventSubscriptionArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'Sns': {'Type': 'Notification', 'MessageId': 'bc85683f-2efc-50c6-8314-3d51aff722d2', 'TopicArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate', 
                 'Subject': None, 
-                'Message': '{"source_node": "5b177a5de4b05e726c7eeecc", "dest_node": "5ca2a9604c52c40f17064db0",  "upper_threshold": "2", "lower_threshold": "0", "changing_rate": "0.5"}', 
+                'Message': '{"source_node": "5b177a5de4b05e726c7eeecc", "dest_node": "5ca2a9604c52c40f17064db0",  "upper_threshold": "2", "lower_threshold": "0.02", "changing_rate": "0.5"}', 
                 'Timestamp': '2019-06-03T01:58:35.515Z', 'SignatureVersion': '1', 'Signature': 'MD2dPjKLTGTijU1s+vPuE699sSM7vquQHQFpVBtqECLEX+4psmZeT7oAMSZY5yCAtS2QKesiE4/lR9ezBENfmmTy/TrWyqguyY+4RO121nzlMWN3FN/IPdbNJU2yvsYby7//PwIJDvgN2KgoAhZPoW92bJtFAxOlMKmnNSsfCPM7lH0FF4M2pyvmzbyauFoFhJfdr0hRWfcPnmmMSusr8rc9Y0wdEtR37qexQ99GR8w2KWMZE8VWPNc8ZdXSeE3sLv7floxaxCIqWcS3nm6pJiN/B0YzDBIJvVEIa492qKm8lPd34MCRG6lLH05VJw3KwkOQLbabpJoP43lKhDZdkQ==', 'SigningCertUrl': 'https://sns.ap-southeast-2.amazonaws.com/SimpleNotificationService-6aad65c2f9911b05cd53efda11f913f9.pem', 'UnsubscribeUrl': 'https://sns.ap-southeast-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'MessageAttributes': {}}}]}
     
     main(testEvent, None)
