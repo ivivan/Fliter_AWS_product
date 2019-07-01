@@ -131,15 +131,18 @@ def filter_data(source_node, dest_node, upper_threhold, lower_threhold, changing
     if(dest_metadata['currentTime'] == 0):
         # use all of the available data
         log.warning("Empty time fields in destination node, requesting all source data.")
-        dest_metadata['currentTime'] = source_metadata['oldestTime'] + timedelta(days=FILTER_MIN_WINDOW)
-
+        dest_metadata['currentTime'] = source_metadata['oldestTime']# + timedelta(days=FILTER_MIN_WINDOW)
+    #source_metadata['currentTime'] = source_metadata['currentTime']  - timedelta(hours=1)
+    print("Time difference: ", dest_metadata['currentTime'],  source_metadata['currentTime'], dest_metadata['currentTime']< source_metadata['currentTime'])
     # check that there is new data
     if dest_metadata['currentTime'] < source_metadata['currentTime']:
         # get all new data
         start_time =  dest_metadata['currentTime'] - timedelta(days=FILTER_MIN_WINDOW)
         finish_time = source_metadata['currentTime']
        
-        data = ea.getData(source_node, start_time, finish_time)
+        # the get in the eagle api is not inclusive so add one second to finish_time 
+        # #     so that all the data including the last point is retrieved and the process will not be repeated 
+        data = ea.getData(source_node, start_time, finish_time + timedelta(seconds=1)) # add one min here
         print("Filtering: ", start_time, finish_time, len(data), "; time_dif: ", start_time-finish_time, data[0])
 
         # format data
@@ -158,12 +161,11 @@ def filter_data(source_node, dest_node, upper_threhold, lower_threhold, changing
         # print(np.array(filtered_data))
         # Create JTS JSON time series of filtered data  
         ts = ea.createTimeSeriesJSON(data,filtered_data)
-        #print("TS: ",ts[-300:-1])
         #print(filtered_data)
 
         # update destination on Eagle with filtered data
-        
         res = ea.updateData(dest_node, ts)
+
         return 1
     print("no filtering", dest_metadata['currentTime'], source_metadata['currentTime'] )
     return 0

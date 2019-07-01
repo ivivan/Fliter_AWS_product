@@ -171,6 +171,7 @@ class eagleFilter():
     #Function to return data for node form eagle io
     def getData( self, node, startTime, endTime):
         #using a read API key
+        print(startTime, endTime)
 
         headers = {'X-Api-Key':'GBBbwpSHH54zF58e7Xwp25zFUZ8xJ5c3TxHUff1B'}
         data = []
@@ -181,7 +182,7 @@ class eagleFilter():
                   'endTime':endTime.strftime('%Y-%m-%dT%H:%M:%SZ'),
                   'timeFormat' : 'YYYY-MM-DDTHH:mm:ss',
                   'timezone' : 'Etc/UTC',
-                  'limit': 10000,
+                  'limit': 10000, # too low to run just once on some old streams on when filtering for the first time
                   'params':node }
         print (params)
         try:
