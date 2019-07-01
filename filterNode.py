@@ -105,7 +105,34 @@ def changing_rate_filter(input_data_filtered,changing_rate):
 
     return input_data_filtered_seocnd
 
+def reference_filter(input_data, refANode, refBNode, refCNode, refDNode, SQINode, start_time, finish_time):
+    refA = ea.getData(refANode, start_time, finish_time + timedelta(seconds=1))
+    refB = ea.getData(refBNode, start_time, finish_time + timedelta(seconds=1))
+    refC = ea.getData(refCNode, start_time, finish_time + timedelta(seconds=1))
+    refD = ea.getData(refDNode, start_time, finish_time + timedelta(seconds=1))
+    SQI = ea.getData(SQINode, start_time, finish_time + timedelta(seconds=1))
+
+    # mask values of RefD > 13000
+    mask  = refD < 13000
+    # mask other reference less than 150
+    mask |= ((refA < 150)|(refB < 150)|(refC < 150))
+    # SQI < 0.8 or SQI > 1
+    mask |= (SQI<0.8)|(SQI>1)
+
+    mask |= (Math.abs(refD - refA) > 7000)|(Math.abs(refD - refB) > 7000)|(Math.abs(refD - refC) > 7000)
+
+    print(mask)
+
+    input_data_filtered = input_data.copy()
+    input_data_filtered[mask] = np.NAN
     
+    # interpolate
+    mask = np.isnan(input_data_filtered)
+    mask = mask_nan(mask,5)
+    input_data_filtered[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), input_data_filtered[~mask])
+    return input_data_filtered
+
+
 
 """ gets data from eagle io and if there is new data filters it
 and reuloads it 
@@ -132,8 +159,9 @@ def filter_data(source_node, dest_node, upper_threhold, lower_threhold, changing
         # use all of the available data
         log.warning("Empty time fields in destination node, requesting all source data.")
         dest_metadata['currentTime'] = source_metadata['oldestTime']# + timedelta(days=FILTER_MIN_WINDOW)
-    #source_metadata['currentTime'] = source_metadata['currentTime']  - timedelta(hours=1)
-    print("Time difference: ", dest_metadata['currentTime'],  source_metadata['currentTime'], dest_metadata['currentTime']< source_metadata['currentTime'])
+
+    #print("Time difference: ", dest_metadata['currentTime'],  source_metadata['currentTime'], dest_metadata['currentTime']< source_metadata['currentTime'])
+    
     # check that there is new data
     if dest_metadata['currentTime'] < source_metadata['currentTime']:
         # get all new data
@@ -156,12 +184,9 @@ def filter_data(source_node, dest_node, upper_threhold, lower_threhold, changing
         
         # run all realtime filters
         filtered_data = run_filter(input_data, upper_threhold, lower_threhold, changing_rate)
-        # print(input_data)
-        # print("-----")
-        # print(np.array(filtered_data))
+
         # Create JTS JSON time series of filtered data  
         ts = ea.createTimeSeriesJSON(data,filtered_data)
-        #print(filtered_data)
 
         # update destination on Eagle with filtered data
         res = ea.updateData(dest_node, ts)

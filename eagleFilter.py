@@ -108,7 +108,7 @@ class eagleFilter():
                         (jsonData['error'].get('code'), 
                         jsonData['error'].get('message'))))
 
-        print("Time %s value %s" %(jsonData.get('currentTime'), jsonData.get('currentValue')))
+        #print("Time %s value %s" %(jsonData.get('currentTime'), jsonData.get('currentValue')))
         #print(jsonData)
 
         try:
