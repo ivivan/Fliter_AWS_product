@@ -1,18 +1,29 @@
 {
+    "_" : "upper threshold may be a value or nan, lower threshold must have a value",
     "nodes":[
         {
-            "source":  "5b177a5de4b05e726c7eeecc",  
-            "destination": "5ca2a9604c52c40f17064daf", 
+            "name": "p25 - behana creek - streamLevel",
+            "source":  "5b177a5ae4b05e726c7eeeb5",  
+            "destination": "5ca2a9604c52c40f17064db1", 
+            "upperThreshold": "nan", 
+            "lowerThreshold": "0", 
+            "changingRate": "2"
+        },
+        {
+            "name": "p25 - behana creek - ROM-NO3-N",
+            "source":  "5c3578fc1bbcf10f7880ca5f",  
+            "destination": "5ca2a9604c52c40f17064db3", 
             "upperThreshold": "2", 
             "lowerThreshold": "0", 
             "changingRate": "0.5"
         },
         {
-            "source":  "5b177a5de4b05e726c7eeecc",  
-            "destination": "5ca2a9604c52c40f17064db0", 
-            "upperThreshold": "2", 
-            "lowerThreshold": "0", 
-            "changingRate": "0.5"
+            "name": "p25 - behana creek - streamTemperature",
+            "source":  "5b177a5ae4b05e726c7eeeb8",  
+            "destination": "5ca2a9604c52c40f17064db2", 
+            "upperThreshold": "nan", 
+            "lowerThreshold": "nan", 
+            "changingRate": "2"
 
         }
         

@@ -36,3 +36,6 @@ def main(event, context):
         #client.invoke(FunctionName='gbrEagleFilterNode', InvocationType='DryRun', Payload=json.dumps(settings))
         r = client.publish(TopicArn='arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate', Message=message)
         print(r)
+
+if __name__ == "__main__":
+    main(None, None)

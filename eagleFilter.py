@@ -10,7 +10,7 @@ import logging
 
 # Set up logger
 log = logging.getLogger()
-log.setLevel(logging.INFO)
+log.setLevel(logging.WARNING)
 
 class eagleFilter():
     # Historic eagle io url API
@@ -108,7 +108,8 @@ class eagleFilter():
                         (jsonData['error'].get('code'), 
                         jsonData['error'].get('message'))))
 
-        #print("Time %s value %s" %(jsonData.get('currentTime'), jsonData.get('currentValue')))
+        print("Time %s value %s" %(jsonData.get('currentTime'), jsonData.get('currentValue')))
+        #print(jsonData)
 
         try:
             currentTime = datetime.strptime(jsonData['currentTime'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(microsecond=0)
@@ -196,8 +197,9 @@ class eagleFilter():
 
         except ConnectionError as e :
             print (e)
+            # need to do something else here
 
-
+        #print(hist_values)
         if len(hist_values['data']) > 0:
             rows = []
             for i in range(0,len(hist_values['data']) ):
@@ -252,12 +254,13 @@ class eagleFilter():
                     json.loads(result.text).get('error').get('code'), 
                     json.loads(result.text).get('error').get('message'))
          
-
-
         except ConnectionError as e:
+            # exception is printed not raised so that the function is not repeated for this
+            result = -1
             print(e)
+            #raise
 
-        return   result
+        return result
 
 
     #Update Eagle
@@ -278,7 +281,9 @@ class eagleFilter():
 
 
         except ConnectionError as e:
+            result = -1
             print(e)
+            #raise
 
         return   result
 
