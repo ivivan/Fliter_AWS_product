@@ -8,8 +8,22 @@ import json
 import logging as log
 from datetime import datetime, timedelta
 from itertools import count, groupby
+import pandas as pd
 
 FILTER_MIN_WINDOW = 10 #days
+RESAMPLE_INTERVAL = None
+
+"""
+Note:
+    Currently there may be a timeout if there are too many new values to process
+    due to the time it takes to get data from eagle for all reference nodes 
+    (about an extra 1 second for 10 days of data)
+
+    If the filter is not able to run for some time or if more than some value of 
+    data comes through in the interval between filtering it may still time out
+    This is for now unaddressed
+"""
+
 
 """ Sets values to False if there are more than n consecutive True values
     This allows for us to interpolate only the NAN values in the data where there 
@@ -32,43 +46,68 @@ def mask_nan(mask, n):
     #print(mask) 
     return mask  
 
+""" resample to mean, interval in minutes"""
+def resample(data, interval=60):
+    print("Resampleing...", data[0], data[-1], len(data))
+    global RESAMPLE_INTERVAL
+    d = pd.DataFrame(data)
+    d[0] = pd.to_datetime(d[0])
+    d.set_index(0, inplace=True, drop=False)
+    d[1] = d[1].astype(float)
+   
+    if(interval == None):
+        log.info("Interval automatically set")
+        interval = abs(d.index[0]-d.index[1]).seconds//(1*60)
+        #round to nearest 10 minutes
+        interval = round(interval,-1)
+        RESAMPLE_INTERVAL = interval #could simplify this
+
+    rdata = d.resample(str(interval)+'T').mean()
+    rdata.index = rdata.reset_index()[0].dt.strftime('%Y-%m-%dT%H:%M:%S')
+    return rdata.reset_index().values
+
+
+
 """takes the node, loads data and runs all  filters on it"""
-def run_filter(input_data, upper_threhold, lower_threhold, changing_rate,  
+def run_filter(input_data, upper_threshold, lower_threshold, changing_rate,  
                 start_time, finish_time, 
-                refANode, refBNode, refCNode, refDNode, SQINode):
+                refANode, refBNode, refCNode, refDNode, SQINode, input_dates):
 
     # Run the reference filter if ref is defined
-    # if(refANode and refBNode and refCNode and refDNode and SQINode):
-    #     input_data_ref = reference_filter(input_data, refANode, refBNode, refCNode, refDNode, SQINode, start_time, finish_time)
-    # else:
-    #     input_data_ref = input_data.copy()
-    input_data_ref = input_data.copy()
+    if(refANode and refBNode and refCNode and refDNode and SQINode):
+        input_data_ref = reference_filter(input_data, refANode, refBNode, refCNode, refDNode, SQINode, start_time, finish_time, input_dates)
+    else:
+        input_data_ref = input_data.copy()
+    # input_data_ref = input_data.copy()
 
     # Directly from lambda_function.py
-    if(not (np.isnan(upper_threhold)and np.isnan(lower_threhold))):
-        input_data_filtered = threshold_filter(input_data_ref, upper_threhold, lower_threhold)
+    if(not (np.isnan(upper_threshold)and np.isnan(lower_threshold))):
+        input_data_filtered = threshold_filter(input_data_ref, upper_threshold, lower_threshold)
     else:
         input_data_filtered = input_data_ref.copy()
         log.info("No threshold filter")
 
     input_data_filtered_seocnd = changing_rate_filter(input_data_filtered,changing_rate)
-
+   
     # may be unneccesary 
     # convert pandas data frame to list
     f = input_data_filtered_seocnd.tolist()
     return f
 
-def threshold_filter(input_data, upper_threhold, lower_threhold):
+def threshold_filter(input_data, upper_threshold, lower_threshold):
     # apply threshold filter
     # filtered data is replaced by NAN
 
     mask = np.ones(len(input_data)) !=  np.ones(len(input_data))
-    if(not np.isnan(lower_threhold)):
-        mask |= (input_data<lower_threhold)
-    if(not np.isnan(upper_threhold)):
-        mask |= (input_data>upper_threhold)
+    if(not np.isnan(lower_threshold)):
+        mask |= np.less(input_data, lower_threshold, where=~np.isnan(input_data))
+        # mask |= (input_data<lower_threshold)
+    if(not np.isnan(upper_threshold)):
+        mask|=np.greater(input_data, upper_threshold, where=~np.isnan(input_data))
+        # mask |= (input_data>upper_threshold)
+
     # this only produces a warning but remove for now
-    #mask1 = (input_data<lower_threhold)|(input_data>upper_threhold)
+    #mask1 = (input_data<lower_threshold)|(input_data>upper_threshold)
     #print("---------", np.all(mask1==mask))
 
     input_data_filtered = input_data.copy()
@@ -115,24 +154,65 @@ def changing_rate_filter(input_data_filtered,changing_rate):
 
     return input_data_filtered_seocnd
 
-def reference_filter(input_data, refANode, refBNode, refCNode, refDNode, SQINode, start_time, finish_time):
+def reference_filter(input_data, refANode, refBNode, refCNode, refDNode, SQINode, start_time, finish_time, input_dates):
+    global RESAMPLE_INTERVAL
     ea = eagle() # new instance but could pass around
 
     # the following takes a long time
-    refA = np.asarray(ea.getData(refANode, start_time, finish_time + timedelta(seconds=1)))[:,1].astype(float)
-    refB = np.asarray(ea.getData(refBNode, start_time, finish_time + timedelta(seconds=1)))[:,1].astype(float)
-    refC = np.asarray(ea.getData(refCNode, start_time, finish_time + timedelta(seconds=1)))[:,1].astype(float)
-    refD = np.asarray(ea.getData(refDNode, start_time, finish_time + timedelta(seconds=1)))[:,1].astype(float)
-    SQI = np.asarray(ea.getData(SQINode, start_time, finish_time + timedelta(seconds=1)))[:,1].astype(float)
+    refA_data = ea.getData(refANode, start_time, finish_time + timedelta(seconds=1))
+    # insert start and end time so that the range varries across all of the array 
+    # have to be actual start and end time not the one passed in 
+    refA_data.insert(0, [start_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
+    refA_data.append([finish_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
+    refA_data = resample(np.asarray(refA_data), interval=RESAMPLE_INTERVAL)
+    refA = refA_data[:,1].astype(float)
 
-    # mask values of RefD > 13000
-    mask  = refD < 13000 
-    # mask other reference less than 150
-    mask |= ((refA < 150)|(refB < 150)|(refC < 150))
-    # SQI < 0.8 or SQI > 1
-    mask |= (SQI<0.8)|(SQI>1)
+    refB_data = ea.getData(refBNode, start_time, finish_time + timedelta(seconds=1))
+    refB_data.insert(0, [start_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
+    refB_data.append([finish_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
+    refB_data = resample(np.asarray(refB_data), interval=RESAMPLE_INTERVAL)
+    refB = refB_data[:,1].astype(float)
 
-    mask |= (np.abs(refD - refA) > 7000)|(np.abs(refD - refB) > 7000)|(np.abs(refD - refC) > 7000)
+    refC_data = ea.getData(refCNode, start_time, finish_time + timedelta(seconds=1))
+    refC_data.insert(0, [start_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
+    refC_data.append([finish_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
+    refC_data = resample(np.asarray(refC_data), interval=RESAMPLE_INTERVAL)
+    refC = refC_data[:,1].astype(float)
+
+    refD_data = ea.getData(refDNode, start_time, finish_time + timedelta(seconds=1))
+    refD_data.insert(0, [start_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
+    refD_data.append([finish_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
+    refD_data = resample(np.asarray(refD_data), interval=RESAMPLE_INTERVAL)
+    refD = refD_data[:,1].astype(float)
+
+    SQI_data = refA_data = ea.getData(SQINode, start_time, finish_time + timedelta(seconds=1))
+    SQI_data.insert(0, [start_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
+    SQI_data.append([finish_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
+    SQI_data  = resample(np.asarray(SQI_data) , interval=RESAMPLE_INTERVAL)
+    SQI = SQI_data[:,1].astype(float)
+
+    print("Lengths: ", len(input_data), len(refA), len(refB), len(refC), len(refD), len(SQI))
+
+    # if(any(input_dates != refA_data[:, 0])):
+    #     print((input_dates != refA_data[:, 0])[0:10])
+    #     print("Note the same")
+    # mask = (input_dates == refA_data[:, 0]) & (input_dates == refB_data[:, 0]) 
+    # mask &=  (input_dates == refC_data[:, 0]) & (input_dates == refD_data[:, 0]) & (input_dates == SQI_data[:, 0])
+
+    # print(mask[0:200])
+    try:
+        # mask values of RefD > 13000
+        mask  = refD < 13000 
+        # mask other reference less than 150
+        mask |= ((refA < 150)|(refB < 150)|(refC < 150))
+        # SQI < 0.8 or SQI > 1
+        mask |= (SQI<0.8)|(SQI>1)
+
+        mask |= (np.abs(refD - refA) > 7000)|(np.abs(refD - refB) > 7000)|(np.abs(refD - refC) > 7000)
+    except ValueError:
+        log.warning("The reference streams may have different numbers of data points \n No reference filter applied")
+        return input_data
+
 
     # if(any(refD < 13000)):
     #     print("1")
@@ -143,6 +223,9 @@ def reference_filter(input_data, refANode, refBNode, refCNode, refDNode, SQINode
     # if(any((np.abs(refD - refA) > 7000)|(np.abs(refD - refB) > 7000)|(np.abs(refD - refC) > 7000))):
     #      print("4")
 
+    if (len(mask) != len(input_data)):
+        log.warning("The reference and value streams have different number of data points \n No reference filter applied")
+        return input_data
     input_data_filtered = input_data.copy()
     input_data_filtered[mask] = np.NAN
     
@@ -158,10 +241,10 @@ and reuloads it
 Could have this in run filter or in the filter loop but not sure where so 
 having seperate
 """
-def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode, SQINode, upper_threhold, lower_threhold, changing_rate):
+def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode, SQINode, upper_threshold, lower_threshold, changing_rate):
     # get input data from node and convert
     ea = eagle()
-    global FILTER_MIN_WINDOW
+    global FILTER_MIN_WINDOW, RESAMPLE_INTERVAL
 
     source_metadata = ea.getLocationMetadata(source_node)
     dest_metadata = ea.getLocationMetadata(dest_node)
@@ -178,8 +261,13 @@ def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode, 
         log.warning("Empty time fields in destination node, requesting all source data.")
         dest_metadata['currentTime'] = source_metadata['oldestTime']# + timedelta(days=FILTER_MIN_WINDOW)
 
+    ### for testing filtering all
+    dest_metadata['currentTime'] = source_metadata['oldestTime']
+    ### for testing when all filtered
+    # dest_metadata['currentTime'] = source_metadata['currentTime'] - timedelta(days=4)
+
     #print("Time difference: ", dest_metadata['currentTime'],  source_metadata['currentTime'], dest_metadata['currentTime']< source_metadata['currentTime'])
-    # dest_metadata['currentTime'] = source_metadata['currentTime'] - timedelta(minutes=1)
+   
     # check that there is new data
     if dest_metadata['currentTime'] < source_metadata['currentTime']:
         # get all new data
@@ -189,21 +277,25 @@ def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode, 
         # the get in the eagle api is not inclusive so add one second to finish_time 
         # #     so that all the data including the last point is retrieved and the process will not be repeated 
         data = ea.getData(source_node, start_time, finish_time + timedelta(seconds=1)) # add one min here
+        data = resample(data, interval=RESAMPLE_INTERVAL)
         print("Filtering: ", start_time, finish_time, len(data), "; time_dif: ", start_time-finish_time, data[0])
-
         # format data
         input_data = np.asarray(data)[:,1]   
         
         input_data = input_data.astype(float)
-
+        input_dates = np.asarray(data)[:,0]  
+        
+        start_time = datetime.strptime(input_dates[0], '%Y-%m-%dT%H:%M:%S')
+        finish_time = datetime.strptime(input_dates[-1], '%Y-%m-%dT%H:%M:%S')
+        
         #all new data is nan so no filtering occurs
         if(np.isnan(input_data).all()):
             return 0
         
         # run all realtime filters
-        filtered_data = run_filter(input_data, upper_threhold, 
-                lower_threhold, changing_rate, start_time, finish_time, 
-                refANode, refBNode, refCNode, refDNode, SQINode)
+        filtered_data = run_filter(input_data, upper_threshold, 
+                lower_threshold, changing_rate, start_time, finish_time, 
+                refANode, refBNode, refCNode, refDNode, SQINode, input_dates)
 
         # Create JTS JSON time series of filtered data  
         ts = ea.createTimeSeriesJSON(data,filtered_data)
@@ -216,6 +308,7 @@ def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode, 
     return 0
 
 def main(event, context):
+    global RESAMPLE_INTERVAL
     log.basicConfig(level=log.WARNING)
 
     ''' only required for sns '''
@@ -242,6 +335,12 @@ def main(event, context):
         refCNode = None
         refDNode = None
         SQINode = None
+
+    try:
+        RESAMPLE_INTERVAL = event['interval']
+    except:
+        RESAMPLE_INTERVAL = None
+    
     
     print("Processing ", source_node, dest_node)
     res = filter_data(source_node, dest_node, 
@@ -269,35 +368,34 @@ def run():
 
 
 if __name__ == "__main__":
-    run()
-    # # testEvent = {
-    # #             "source_node": "5b177a5de4b05e726c7eeecc",
-    # #             "dest_node": "5ca2a9604c52c40f17064dafa",
-    # #             "upper_threshold": 2,
-    # #             "lower_threshold": 1,
-    # #             "changing_rate": 0.5
-    # #             }
-    # # output on column 3
+    # run()
+    # testEvent = {
+    #             "source_node": "5b177a5de4b05e726c7eeecc",
+    #             "dest_node": "5ca2a9604c52c40f17064dafa",
+    #             "upper_threshold": 2,
+    #             "lower_threshold": 1,
+    #             "changing_rate": 0.5
+    #             }
+    # output on column 3
+    testEvent = {'Records': [{'EventSource': 'aws:sns', 
+                'EventVersion': '1.0', 'EventSubscriptionArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'Sns': {'Type': 'Notification', 'MessageId': 'bc85683f-2efc-50c6-8314-3d51aff722d2', 'TopicArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate', 
+                'Subject': None, 
+                'Message': '{"source_node": "5c3578fc1bbcf10f7880ca5f", "dest_node": "5ca2a9604c52c40f17064db0", "refANode": "5c3578fc1bbcf10f7880ca62", "refBNode": "5c3578fc1bbcf10f7880ca63", "refCNode": "5c3578fc1bbcf10f7880ca64", "refDNode": "5c3578fc1bbcf10f7880ca65", "SQINode": "5c3578fc1bbcf10f7880ca61", "upper_threshold": "2", "lower_threshold": "0.05", "changing_rate": "0.05"}', 
+                'Timestamp': '2019-06-03T01:58:35.515Z', 'SignatureVersion': '1', 'Signature': 'MD2dPjKLTGTijU1s+vPuE699sSM7vquQHQFpVBtqECLEX+4psmZeT7oAMSZY5yCAtS2QKesiE4/lR9ezBENfmmTy/TrWyqguyY+4RO121nzlMWN3FN/IPdbNJU2yvsYby7//PwIJDvgN2KgoAhZPoW92bJtFAxOlMKmnNSsfCPM7lH0FF4M2pyvmzbyauFoFhJfdr0hRWfcPnmmMSusr8rc9Y0wdEtR37qexQ99GR8w2KWMZE8VWPNc8ZdXSeE3sLv7floxaxCIqWcS3nm6pJiN/B0YzDBIJvVEIa492qKm8lPd34MCRG6lLH05VJw3KwkOQLbabpJoP43lKhDZdkQ==', 'SigningCertUrl': 'https://sns.ap-southeast-2.amazonaws.com/SimpleNotificationService-6aad65c2f9911b05cd53efda11f913f9.pem', 'UnsubscribeUrl': 'https://sns.ap-southeast-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'MessageAttributes': {}}}]}
+    
     # testEvent = {'Records': [{'EventSource': 'aws:sns', 
     #             'EventVersion': '1.0', 'EventSubscriptionArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'Sns': {'Type': 'Notification', 'MessageId': 'bc85683f-2efc-50c6-8314-3d51aff722d2', 'TopicArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate', 
     #             'Subject': None, 
-    #             'Message': '{"source_node": "5c3578fc1bbcf10f7880ca5f", "dest_node": "5ca2a9604c52c40f17064db0", "refANode": "5c3578fc1bbcf10f7880ca62", "refBNode": "5c3578fc1bbcf10f7880ca63", "refCNode": "5c3578fc1bbcf10f7880ca64", "refDNode": "5c3578fc1bbcf10f7880ca65", "SQINode": "5c3578fc1bbcf10f7880ca61", "upper_threshold": "1", "lower_threshold": "0.05", "changing_rate": "0.05"}', 
+    #             'Message': '{"source_node": "5c3578fc1bbcf10f7880ca5f", "dest_node": "5ca2a9604c52c40f17064db0", "upper_threshold": "1", "lower_threshold": "0.05", "changing_rate": "0.05"}', 
     #             'Timestamp': '2019-06-03T01:58:35.515Z', 'SignatureVersion': '1', 'Signature': 'MD2dPjKLTGTijU1s+vPuE699sSM7vquQHQFpVBtqECLEX+4psmZeT7oAMSZY5yCAtS2QKesiE4/lR9ezBENfmmTy/TrWyqguyY+4RO121nzlMWN3FN/IPdbNJU2yvsYby7//PwIJDvgN2KgoAhZPoW92bJtFAxOlMKmnNSsfCPM7lH0FF4M2pyvmzbyauFoFhJfdr0hRWfcPnmmMSusr8rc9Y0wdEtR37qexQ99GR8w2KWMZE8VWPNc8ZdXSeE3sLv7floxaxCIqWcS3nm6pJiN/B0YzDBIJvVEIa492qKm8lPd34MCRG6lLH05VJw3KwkOQLbabpJoP43lKhDZdkQ==', 'SigningCertUrl': 'https://sns.ap-southeast-2.amazonaws.com/SimpleNotificationService-6aad65c2f9911b05cd53efda11f913f9.pem', 'UnsubscribeUrl': 'https://sns.ap-southeast-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'MessageAttributes': {}}}]}
-    
-    # # testEvent = {'Records': [{'EventSource': 'aws:sns', 
-    # #             'EventVersion': '1.0', 'EventSubscriptionArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'Sns': {'Type': 'Notification', 'MessageId': 'bc85683f-2efc-50c6-8314-3d51aff722d2', 'TopicArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate', 
-    # #             'Subject': None, 
-    # #             'Message': '{"source_node": "5c3578fc1bbcf10f7880ca5f", "dest_node": "5ca2a9604c52c40f17064db0", "upper_threshold": "1", "lower_threshold": "0.05", "changing_rate": "0.05"}', 
-    # #             'Timestamp': '2019-06-03T01:58:35.515Z', 'SignatureVersion': '1', 'Signature': 'MD2dPjKLTGTijU1s+vPuE699sSM7vquQHQFpVBtqECLEX+4psmZeT7oAMSZY5yCAtS2QKesiE4/lR9ezBENfmmTy/TrWyqguyY+4RO121nzlMWN3FN/IPdbNJU2yvsYby7//PwIJDvgN2KgoAhZPoW92bJtFAxOlMKmnNSsfCPM7lH0FF4M2pyvmzbyauFoFhJfdr0hRWfcPnmmMSusr8rc9Y0wdEtR37qexQ99GR8w2KWMZE8VWPNc8ZdXSeE3sLv7floxaxCIqWcS3nm6pJiN/B0YzDBIJvVEIa492qKm8lPd34MCRG6lLH05VJw3KwkOQLbabpJoP43lKhDZdkQ==', 'SigningCertUrl': 'https://sns.ap-southeast-2.amazonaws.com/SimpleNotificationService-6aad65c2f9911b05cd53efda11f913f9.pem', 'UnsubscribeUrl': 'https://sns.ap-southeast-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'MessageAttributes': {}}}]}
-    # # main(testEvent, None)
-    # import time
-    # start = time.clock()
     # main(testEvent, None)
-    # fin = time.clock()
-    # print("Time: %f" % (fin-start))
+    import time
+    start = time.clock()
+    main(testEvent, None)
+    fin = time.clock()
+    print("Time: %f" % (fin-start))
 
-    # # powershell -Command Measure-Command {python filterNode.py}
-    # # python -m timeit -n 1 -s "from filterNode import run" "run()"
-
+    # powershell -Command Measure-Command {python filterNode.py}
+    # python -m timeit -n 1 -s "from filterNode import run" "run()"
 
 

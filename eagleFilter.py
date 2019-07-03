@@ -178,7 +178,7 @@ class eagleFilter():
 
         #Get utc representation
 
-        params = {'startTime':startTime.strftime('%Y-%m-%dT%H:%M:%SZ'), \
+        params = {'startTime':startTime.strftime('%Y-%m-%dT%H:%M:%SZ'), 
                   'endTime':endTime.strftime('%Y-%m-%dT%H:%M:%SZ'),
                   'timeFormat' : 'YYYY-MM-DDTHH:mm:ss',
                   'timezone' : 'Etc/UTC',
