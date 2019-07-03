@@ -15,7 +15,12 @@
             "destination": "5ca2a9604c52c40f17064db3", 
             "upperThreshold": "2", 
             "lowerThreshold": "0", 
-            "changingRate": "0.5"
+            "changingRate": "0.5",
+            "refANode": "5c3578fc1bbcf10f7880ca62",
+            "refBNode": "5c3578fc1bbcf10f7880ca63",
+            "refCNode": "5c3578fc1bbcf10f7880ca64",
+            "refDNode": "5c3578fc1bbcf10f7880ca65",
+            "SQINode": "5c3578fc1bbcf10f7880ca61"
         },
         {
             "name": "p25 - behana creek - streamTemperature",

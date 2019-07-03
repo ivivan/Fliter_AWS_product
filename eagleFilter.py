@@ -171,7 +171,7 @@ class eagleFilter():
     #Function to return data for node form eagle io
     def getData( self, node, startTime, endTime):
         #using a read API key
-        print(startTime, endTime)
+        # print(startTime, endTime)
 
         headers = {'X-Api-Key':'GBBbwpSHH54zF58e7Xwp25zFUZ8xJ5c3TxHUff1B'}
         data = []
@@ -184,7 +184,7 @@ class eagleFilter():
                   'timezone' : 'Etc/UTC',
                   'limit': 10000, # too low to run just once on some old streams on when filtering for the first time
                   'params':node }
-        print (params)
+        # print (params)
         try:
             #could be in a repeat loop
             for i in range(0,3):
