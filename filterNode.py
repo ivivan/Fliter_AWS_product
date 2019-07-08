@@ -9,6 +9,7 @@ import logging as log
 from datetime import datetime, timedelta
 from itertools import count, groupby
 import pandas as pd
+from scipy import signal
 
 FILTER_MIN_WINDOW = 10 #days
 RESAMPLE_INTERVAL = None
@@ -58,6 +59,7 @@ def resample(data, interval=60):
     if(interval == None):
         log.info("Interval automatically set")
         interval = abs(d.index[0]-d.index[1]).seconds//(1*60)
+        print(interval)
         #round to nearest 10 minutes
         interval = round(interval,-1)
         RESAMPLE_INTERVAL = interval #could simplify this
@@ -66,6 +68,21 @@ def resample(data, interval=60):
     rdata.index = rdata.reset_index()[0].dt.strftime('%Y-%m-%dT%H:%M:%S')
     return rdata.reset_index().values
 
+def resample2(data, interval=60):
+    print("Resampleing...", data[0], data[-1], len(data))
+    global RESAMPLE_INTERVAL
+    values = data[:, 1]
+    times = data[:, 0]
+    num = len(data)/3
+    start_time = datetime.strptime(datetime.strftime(datetime.strptime(times[0], "%Y-%m-%dT%H:%M:%S"), "%Y-%m-%dT%H:%M"), "%Y-%m-%dT%H:%M")
+    end_time = datetime.strptime(datetime.strftime(datetime.strptime(times[-1], "%Y-%m-%dT%H:%M:%S"), "%Y-%m-%dT%H:%M"), "%Y-%m-%dT%H:%M")
+    
+    dates_list = [datetime.timedelta(minutes=60*i) + start_time for i in range(0, num)]
+    rdata = signal.resample(values, num)
+    odates = times.astype('datetime64')
+    result = np.column_stack((dates_list,rdata))
+
+    return rdata
 
 
 """takes the node, loads data and runs all  filters on it"""
@@ -89,6 +106,18 @@ def run_filter(input_data, upper_threshold, lower_threshold, changing_rate,
 
     input_data_filtered_seocnd = changing_rate_filter(input_data_filtered,changing_rate)
    
+    ''' plot 
+    from matplotlib import pyplot as plt
+
+    plt.plot(input_data, 'k.', input_data, 'k-', alpha = 0.4, linewidth=0.5, markersize=2)
+    plt.plot(input_data_ref, 'r.',  input_data_ref, 'r-', alpha = 0.4, linewidth=0.5, markersize=2)
+    plt.plot(input_data_filtered_seocnd, 'g.', input_data_filtered_seocnd, 'g-', linewidth=0.7, markersize=2)
+    plt.plot(lower_threshold*np.ones(len(input_data_ref)))
+    plt.plot(upper_threshold*np.ones(len(input_data_ref)))
+    plt.show()
+
+    ''' 
+
     # may be unneccesary 
     # convert pandas data frame to list
     f = input_data_filtered_seocnd.tolist()
@@ -193,6 +222,7 @@ def reference_filter(input_data, refANode, refBNode, refCNode, refDNode, SQINode
 
     print("Lengths: ", len(input_data), len(refA), len(refB), len(refC), len(refD), len(SQI))
 
+
     # if(any(input_dates != refA_data[:, 0])):
     #     print((input_dates != refA_data[:, 0])[0:10])
     #     print("Note the same")
@@ -209,19 +239,21 @@ def reference_filter(input_data, refANode, refBNode, refCNode, refDNode, SQINode
         mask |= (SQI<0.8)|(SQI>1)
 
         mask |= (np.abs(refD - refA) > 7000)|(np.abs(refD - refB) > 7000)|(np.abs(refD - refC) > 7000)
+
+        # if(any(refD < 13000)):
+        #     print("1")
+        # if(any(((refA < 150)|(refB < 150)|(refC < 150)))):
+        #     print("2")
+        # if(any((SQI<0.8)|(SQI>1))):
+        #     print("3")
+        # if(any((np.abs(refD - refA) > 7000)|(np.abs(refD - refB) > 7000)|(np.abs(refD - refC) > 7000))):
+        #     print("4")
     except ValueError:
         log.warning("The reference streams may have different numbers of data points \n No reference filter applied")
         return input_data
 
 
-    # if(any(refD < 13000)):
-    #     print("1")
-    # if(any(((refA < 150)|(refB < 150)|(refC < 150)))):
-    #      print("2")
-    # if(any((SQI<0.8)|(SQI>1))):
-    #      print("3")
-    # if(any((np.abs(refD - refA) > 7000)|(np.abs(refD - refB) > 7000)|(np.abs(refD - refC) > 7000))):
-    #      print("4")
+ 
 
     if (len(mask) != len(input_data)):
         log.warning("The reference and value streams have different number of data points \n No reference filter applied")
@@ -262,9 +294,9 @@ def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode, 
         dest_metadata['currentTime'] = source_metadata['oldestTime']# + timedelta(days=FILTER_MIN_WINDOW)
 
     ### for testing filtering all
-    dest_metadata['currentTime'] = source_metadata['oldestTime']
-    ### for testing when all filtered
-    # dest_metadata['currentTime'] = source_metadata['currentTime'] - timedelta(days=4)
+    # dest_metadata['currentTime'] = source_metadata['oldestTime']
+    ### for testing when already filtered
+    dest_metadata['currentTime'] = source_metadata['currentTime'] - timedelta(days=4)
 
     #print("Time difference: ", dest_metadata['currentTime'],  source_metadata['currentTime'], dest_metadata['currentTime']< source_metadata['currentTime'])
    
@@ -277,8 +309,9 @@ def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode, 
         # the get in the eagle api is not inclusive so add one second to finish_time 
         # #     so that all the data including the last point is retrieved and the process will not be repeated 
         data = ea.getData(source_node, start_time, finish_time + timedelta(seconds=1)) # add one min here
+        print("Filtering: ", start_time, finish_time, len(data), "; time_dif: ", start_time-finish_time,len(data))
         data = resample(data, interval=RESAMPLE_INTERVAL)
-        print("Filtering: ", start_time, finish_time, len(data), "; time_dif: ", start_time-finish_time, data[0])
+        
         # format data
         input_data = np.asarray(data)[:,1]   
         
@@ -337,9 +370,9 @@ def main(event, context):
         SQINode = None
 
     try:
-        RESAMPLE_INTERVAL = event['interval']
+        RESAMPLE_INTERVAL = float(event['interval'])
     except:
-        RESAMPLE_INTERVAL = None
+        RESAMPLE_INTERVAL = 60
     
     
     print("Processing ", source_node, dest_node)
@@ -359,7 +392,7 @@ def run():
     testEvent = {'Records': [{'EventSource': 'aws:sns', 
             'EventVersion': '1.0', 'EventSubscriptionArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'Sns': {'Type': 'Notification', 'MessageId': 'bc85683f-2efc-50c6-8314-3d51aff722d2', 'TopicArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate', 
             'Subject': None, 
-            'Message': '{"source_node": "5c3578fc1bbcf10f7880ca5f", "dest_node": "5ca2a9604c52c40f17064db0", "refANode": "5c3578fc1bbcf10f7880ca62", "refBNode": "5c3578fc1bbcf10f7880ca63", "refCNode": "5c3578fc1bbcf10f7880ca64", "refDNode": "5c3578fc1bbcf10f7880ca65", "SQINode": "5c3578fc1bbcf10f7880ca61", "upper_threshold": "1", "lower_threshold": "0.05", "changing_rate": "0.05"}', 
+            'Message': '{"interval": "60", source_node": "5c3578fc1bbcf10f7880ca5f", "dest_node": "5ca2a9604c52c40f17064db0", "refANode": "5c3578fc1bbcf10f7880ca62", "refBNode": "5c3578fc1bbcf10f7880ca63", "refCNode": "5c3578fc1bbcf10f7880ca64", "refDNode": "5c3578fc1bbcf10f7880ca65", "SQINode": "5c3578fc1bbcf10f7880ca61", "upper_threshold": "1", "lower_threshold": "0", "changing_rate": "0.05"}', 
             'Timestamp': '2019-06-03T01:58:35.515Z', 'SignatureVersion': '1', 'Signature': 'MD2dPjKLTGTijU1s+vPuE699sSM7vquQHQFpVBtqECLEX+4psmZeT7oAMSZY5yCAtS2QKesiE4/lR9ezBENfmmTy/TrWyqguyY+4RO121nzlMWN3FN/IPdbNJU2yvsYby7//PwIJDvgN2KgoAhZPoW92bJtFAxOlMKmnNSsfCPM7lH0FF4M2pyvmzbyauFoFhJfdr0hRWfcPnmmMSusr8rc9Y0wdEtR37qexQ99GR8w2KWMZE8VWPNc8ZdXSeE3sLv7floxaxCIqWcS3nm6pJiN/B0YzDBIJvVEIa492qKm8lPd34MCRG6lLH05VJw3KwkOQLbabpJoP43lKhDZdkQ==', 'SigningCertUrl': 'https://sns.ap-southeast-2.amazonaws.com/SimpleNotificationService-6aad65c2f9911b05cd53efda11f913f9.pem', 'UnsubscribeUrl': 'https://sns.ap-southeast-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'MessageAttributes': {}}}]}
                 
     main(testEvent, None)
@@ -380,7 +413,7 @@ if __name__ == "__main__":
     testEvent = {'Records': [{'EventSource': 'aws:sns', 
                 'EventVersion': '1.0', 'EventSubscriptionArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'Sns': {'Type': 'Notification', 'MessageId': 'bc85683f-2efc-50c6-8314-3d51aff722d2', 'TopicArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate', 
                 'Subject': None, 
-                'Message': '{"source_node": "5c3578fc1bbcf10f7880ca5f", "dest_node": "5ca2a9604c52c40f17064db0", "refANode": "5c3578fc1bbcf10f7880ca62", "refBNode": "5c3578fc1bbcf10f7880ca63", "refCNode": "5c3578fc1bbcf10f7880ca64", "refDNode": "5c3578fc1bbcf10f7880ca65", "SQINode": "5c3578fc1bbcf10f7880ca61", "upper_threshold": "2", "lower_threshold": "0.05", "changing_rate": "0.05"}', 
+                'Message': '{"source_node": "5c3578fc1bbcf10f7880ca5f", "dest_node": "5ca2a9604c52c40f17064db0", "refANode": "5c3578fc1bbcf10f7880ca62", "refBNode": "5c3578fc1bbcf10f7880ca63", "refCNode": "5c3578fc1bbcf10f7880ca64", "refDNode": "5c3578fc1bbcf10f7880ca65", "SQINode": "5c3578fc1bbcf10f7880ca61", "upper_threshold": "2", "lower_threshold": "0", "changing_rate": "0.1"}', 
                 'Timestamp': '2019-06-03T01:58:35.515Z', 'SignatureVersion': '1', 'Signature': 'MD2dPjKLTGTijU1s+vPuE699sSM7vquQHQFpVBtqECLEX+4psmZeT7oAMSZY5yCAtS2QKesiE4/lR9ezBENfmmTy/TrWyqguyY+4RO121nzlMWN3FN/IPdbNJU2yvsYby7//PwIJDvgN2KgoAhZPoW92bJtFAxOlMKmnNSsfCPM7lH0FF4M2pyvmzbyauFoFhJfdr0hRWfcPnmmMSusr8rc9Y0wdEtR37qexQ99GR8w2KWMZE8VWPNc8ZdXSeE3sLv7floxaxCIqWcS3nm6pJiN/B0YzDBIJvVEIa492qKm8lPd34MCRG6lLH05VJw3KwkOQLbabpJoP43lKhDZdkQ==', 'SigningCertUrl': 'https://sns.ap-southeast-2.amazonaws.com/SimpleNotificationService-6aad65c2f9911b05cd53efda11f913f9.pem', 'UnsubscribeUrl': 'https://sns.ap-southeast-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'MessageAttributes': {}}}]}
     
     # testEvent = {'Records': [{'EventSource': 'aws:sns', 
