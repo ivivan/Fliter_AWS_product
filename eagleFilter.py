@@ -182,7 +182,7 @@ class eagleFilter():
                   'endTime':endTime.strftime('%Y-%m-%dT%H:%M:%SZ'),
                   'timeFormat' : 'YYYY-MM-DDTHH:mm:ss',
                   'timezone' : 'Etc/UTC',
-                  'limit': 10000, # too low to run just once on some old streams on when filtering for the first time
+                  'limit': 5000, # too low to run just once on some old streams on when filtering for the first time
                   'params':node }
         # print (params)
         try:

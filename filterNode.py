@@ -8,7 +8,7 @@ import json
 import logging as log
 from datetime import datetime, timedelta
 from itertools import count, groupby
-import pandas as pd
+# import pandas as pd
 from scipy import signal
 
 FILTER_MIN_WINDOW = 10 #days
@@ -89,10 +89,12 @@ def resample2(data, interval=60):
 def resample(input_data, input_dates, data, interval=60):
     print("Resampleing...", data[0], data[-1], len(data))
     global RESAMPLE_INTERVAL
-    dates = data[:,0].astype("datetime64")
-    data[:, 0] = dates
-    input_dates = input_dates.astype("datetime64")
-    final_data = np.array([])
+    data = np.array(data)
+    dates = np.array(data[:,0]).astype('datetime64')
+
+    data[:, 0] = dates.astype('datetime64')
+    input_dates = np.array(input_dates).astype('datetime64')
+    final_data = np.array([[0,0]])
 
     # for i in range(0, len(input_dates)):
     #     if(input_dates[i] == input[i]):
@@ -106,13 +108,27 @@ def resample(input_data, input_dates, data, interval=60):
 
     #or
     for i in range(0, len(input_dates)):
-        if(input_dates[i] == input[i]):
-            final_data.append([input_dates[i], data[i, 1]])
+        if(len(dates)<=i):
+            final_data = np.append(final_data, [[input_dates[i], float('nan')]], axis=0)           
+            data = np.append(data, [[np.datetime64('NaT'), float('nan')]], axis=0)
+            dates = np.array(data[:,0]).astype('datetime64')
+        elif(input_dates[i] == dates[i]):
+            final_data = np.append(final_data, [[input_dates[i], data[i, 1]]], axis=0)
         elif(input_dates[i] < dates[i]):
-            final_data.append([input_dates[i], float('nan')])
-        elif(input_data[i] > dates[i]): 
+            final_data = np.append(final_data, [[input_dates[i], float('nan')]], axis=0)
+            data = np.insert(data, i, [input_dates[i], float('nan')], axis=0)
+            dates = np.array(data[:,0]).astype('datetime64')
+            # i -=1
+        elif(input_dates[i] > dates[i]): 
             # this means there is a reference value without a corrsoponding real value so we remove it
+            data = np.delete(data, i, axis=0)
+            dates = np.array(data[:,0]).astype('datetime64')
+            i-=1
             pass 
+        else:
+            print("Unnacounted case")
+        
+    return final_data[0:]
 
 
 """takes the node, loads data and runs all  filters on it"""
@@ -224,6 +240,7 @@ def reference_filter(input_data, refANode, refBNode, refCNode, refDNode, SQINode
     refA_data.insert(0, [start_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
     refA_data.append([finish_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
     refA_data = resample(input_data, input_dates, np.asarray(refA_data), interval=RESAMPLE_INTERVAL)
+    # print(refA_data)
     refA = refA_data[:,1].astype(float)
 
     refB_data = ea.getData(refBNode, start_time, finish_time + timedelta(seconds=1))
@@ -324,9 +341,9 @@ def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode, 
         dest_metadata['currentTime'] = source_metadata['oldestTime']# + timedelta(days=FILTER_MIN_WINDOW)
 
     ### for testing filtering all
-    # dest_metadata['currentTime'] = source_metadata['oldestTime']
+    dest_metadata['currentTime'] = source_metadata['oldestTime']
     ### for testing when already filtered
-    dest_metadata['currentTime'] = source_metadata['currentTime'] - timedelta(days=4)
+    # dest_metadata['currentTime'] = source_metadata['currentTime'] - timedelta(days=4)
 
     #print("Time difference: ", dest_metadata['currentTime'],  source_metadata['currentTime'], dest_metadata['currentTime']< source_metadata['currentTime'])
    
@@ -432,10 +449,13 @@ def test_resample():
     input_data = []
     input_dates = ['2019-05-01 00:00:00', '2019-05-01 01:00:00', '2019-05-01 02:00:00', '2019-05-01 03:00:00']
     data =  [['2019-05-01 00:00:00',1], ['2019-05-01 02:00:00', 3], ['2019-05-01 03:00:00', 4]]
-    resample(input_data, input_dates, data, interval=60):
+    fdata = resample(input_data, input_dates, data)
+    print(fdata)
 
 
 if __name__ == "__main__":
+    # test_resample()
+    # exit()
     # run()
     # testEvent = {
     #             "source_node": "5b177a5de4b05e726c7eeecc",
@@ -448,7 +468,7 @@ if __name__ == "__main__":
     testEvent = {'Records': [{'EventSource': 'aws:sns', 
                 'EventVersion': '1.0', 'EventSubscriptionArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'Sns': {'Type': 'Notification', 'MessageId': 'bc85683f-2efc-50c6-8314-3d51aff722d2', 'TopicArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate', 
                 'Subject': None, 
-                'Message': '{"source_node": "5c3578fc1bbcf10f7880ca5f", "dest_node": "5ca2a9604c52c40f17064db0", "refANode": "5c3578fc1bbcf10f7880ca62", "refBNode": "5c3578fc1bbcf10f7880ca63", "refCNode": "5c3578fc1bbcf10f7880ca64", "refDNode": "5c3578fc1bbcf10f7880ca65", "SQINode": "5c3578fc1bbcf10f7880ca61", "upper_threshold": "2", "lower_threshold": "0", "changing_rate": "0.1"}', 
+                'Message': '{"source_node": "5c3578fc1bbcf10f7880ca5f", "dest_node": "5ca2a9604c52c40f17064db0", "refANode": "5c3578fc1bbcf10f7880ca62", "refBNode": "5c3578fc1bbcf10f7880ca63", "refCNode": "5c3578fc1bbcf10f7880ca64", "refDNode": "5c3578fc1bbcf10f7880ca65", "SQINode": "5c3578fc1bbcf10f7880ca61", "upper_threshold": "2", "lower_threshold": "0", "changing_rate": "0.5"}', 
                 'Timestamp': '2019-06-03T01:58:35.515Z', 'SignatureVersion': '1', 'Signature': 'MD2dPjKLTGTijU1s+vPuE699sSM7vquQHQFpVBtqECLEX+4psmZeT7oAMSZY5yCAtS2QKesiE4/lR9ezBENfmmTy/TrWyqguyY+4RO121nzlMWN3FN/IPdbNJU2yvsYby7//PwIJDvgN2KgoAhZPoW92bJtFAxOlMKmnNSsfCPM7lH0FF4M2pyvmzbyauFoFhJfdr0hRWfcPnmmMSusr8rc9Y0wdEtR37qexQ99GR8w2KWMZE8VWPNc8ZdXSeE3sLv7floxaxCIqWcS3nm6pJiN/B0YzDBIJvVEIa492qKm8lPd34MCRG6lLH05VJw3KwkOQLbabpJoP43lKhDZdkQ==', 'SigningCertUrl': 'https://sns.ap-southeast-2.amazonaws.com/SimpleNotificationService-6aad65c2f9911b05cd53efda11f913f9.pem', 'UnsubscribeUrl': 'https://sns.ap-southeast-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'MessageAttributes': {}}}]}
     
     # testEvent = {'Records': [{'EventSource': 'aws:sns', 
