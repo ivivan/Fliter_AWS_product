@@ -68,7 +68,7 @@ def resample3(data, interval=60):
     rdata.index = rdata.reset_index()[0].dt.strftime('%Y-%m-%dT%H:%M:%S')
     return rdata.reset_index().values
 
-def resample(data, interval=60):
+def resample2(data, interval=60):
     print("Resampleing...", data[0], data[-1], len(data))
     data = np.array(data)
     global RESAMPLE_INTERVAL
@@ -84,6 +84,35 @@ def resample(data, interval=60):
     result = np.column_stack((dates_list,rdata))
 
     return result
+
+""" Not actually resampling just making missing values be nan """
+def resample(input_data, input_dates, data, interval=60):
+    print("Resampleing...", data[0], data[-1], len(data))
+    global RESAMPLE_INTERVAL
+    dates = data[:,0].astype("datetime64")
+    data[:, 0] = dates
+    input_dates = input_dates.astype("datetime64")
+    final_data = np.array([])
+
+    # for i in range(0, len(input_dates)):
+    #     if(input_dates[i] == input[i]):
+    #         pass
+    #     elif(input_dates[i] < dates[i]):
+    #         np.insert(data, i, [input_dates[i], float('nan')])
+    #         dates = data[:,0]
+    #     elif(input_data[i] > dates[i]): 
+    #         # this means there is a reference value without a corrsoponding real value so we remove it
+    #         np.delete(data, i)
+
+    #or
+    for i in range(0, len(input_dates)):
+        if(input_dates[i] == input[i]):
+            final_data.append([input_dates[i], data[i, 1]])
+        elif(input_dates[i] < dates[i]):
+            final_data.append([input_dates[i], float('nan')])
+        elif(input_data[i] > dates[i]): 
+            # this means there is a reference value without a corrsoponding real value so we remove it
+            pass 
 
 
 """takes the node, loads data and runs all  filters on it"""
@@ -194,31 +223,31 @@ def reference_filter(input_data, refANode, refBNode, refCNode, refDNode, SQINode
     # have to be actual start and end time not the one passed in 
     refA_data.insert(0, [start_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
     refA_data.append([finish_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
-    refA_data = resample(np.asarray(refA_data), interval=RESAMPLE_INTERVAL)
+    refA_data = resample(input_data, input_dates, np.asarray(refA_data), interval=RESAMPLE_INTERVAL)
     refA = refA_data[:,1].astype(float)
 
     refB_data = ea.getData(refBNode, start_time, finish_time + timedelta(seconds=1))
     refB_data.insert(0, [start_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
     refB_data.append([finish_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
-    refB_data = resample(np.asarray(refB_data), interval=RESAMPLE_INTERVAL)
+    refB_data = resample(input_data, input_dates, np.asarray(refB_data), interval=RESAMPLE_INTERVAL)
     refB = refB_data[:,1].astype(float)
 
     refC_data = ea.getData(refCNode, start_time, finish_time + timedelta(seconds=1))
     refC_data.insert(0, [start_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
     refC_data.append([finish_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
-    refC_data = resample(np.asarray(refC_data), interval=RESAMPLE_INTERVAL)
+    refC_data = resample(input_data, input_dates, np.asarray(refC_data), interval=RESAMPLE_INTERVAL)
     refC = refC_data[:,1].astype(float)
 
     refD_data = ea.getData(refDNode, start_time, finish_time + timedelta(seconds=1))
     refD_data.insert(0, [start_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
     refD_data.append([finish_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
-    refD_data = resample(np.asarray(refD_data), interval=RESAMPLE_INTERVAL)
+    refD_data = resample(input_data, input_dates, np.asarray(refD_data), interval=RESAMPLE_INTERVAL)
     refD = refD_data[:,1].astype(float)
 
     SQI_data = refA_data = ea.getData(SQINode, start_time, finish_time + timedelta(seconds=1))
     SQI_data.insert(0, [start_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
     SQI_data.append([finish_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
-    SQI_data  = resample(np.asarray(SQI_data) , interval=RESAMPLE_INTERVAL)
+    SQI_data  = resample(input_data, input_dates, np.asarray(SQI_data) , interval=RESAMPLE_INTERVAL)
     SQI = SQI_data[:,1].astype(float)
 
     print("Lengths: ", len(input_data), len(refA), len(refB), len(refC), len(refD), len(SQI))
@@ -310,9 +339,8 @@ def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode, 
         # the get in the eagle api is not inclusive so add one second to finish_time 
         # #     so that all the data including the last point is retrieved and the process will not be repeated 
         data = ea.getData(source_node, start_time, finish_time + timedelta(seconds=1)) # add one min here
-        print("Filtering: ", start_time, finish_time, len(data), "; time_dif: ", start_time-finish_time,len(data))
-        data = resample(data, interval=RESAMPLE_INTERVAL)
-        
+        #data = resample(data, interval=RESAMPLE_INTERVAL)
+        print("Filtering: ", start_time, finish_time, len(data), "; time_dif: ", start_time-finish_time, data[0])
         # format data
         input_data = np.asarray(data)[:,1]   
         
@@ -399,6 +427,12 @@ def run():
     main(testEvent, None)
     f = open("output.txt", 'a')
     f.write("Ran")
+
+def test_resample():
+    input_data = []
+    input_dates = ['2019-05-01 00:00:00', '2019-05-01 01:00:00', '2019-05-01 02:00:00', '2019-05-01 03:00:00']
+    data =  [['2019-05-01 00:00:00',1], ['2019-05-01 02:00:00', 3], ['2019-05-01 03:00:00', 4]]
+    resample(input_data, input_dates, data, interval=60):
 
 
 if __name__ == "__main__":
