@@ -1,5 +1,6 @@
 {
     "_" : "upper threshold may be a value or nan, lower threshold must have a value",
+    "__" : "changing rate set based on lowesst precision f sensor for all path lengths",
     "nodes":[
         {
             "name": "p25 - behana creek - streamLevel",
@@ -35,3 +36,4 @@
     ]
 
 }
+

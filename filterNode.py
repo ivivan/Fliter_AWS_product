@@ -32,7 +32,6 @@ Note:
 # appear to be working but could test better
 # this could very likely be more efficient
 def mask_nan(mask, n):
-    #print(mask)
     i=0
     while i<(len(mask)-n-1):
         if((mask[i:i+n]==True).all()):
@@ -47,91 +46,7 @@ def mask_nan(mask, n):
     #print(mask) 
     return mask  
 
-# """ resample to mean, interval in minutes"""
-# def resample3(data, interval=60):
-#     print("Resampleing...", data[0], data[-1], len(data))
-#     global RESAMPLE_INTERVAL
-#     d = pd.DataFrame(data)
-#     d[0] = pd.to_datetime(d[0])
-#     d.set_index(0, inplace=True, drop=False)
-#     d[1] = d[1].astype(float)
-   
-#     if(interval == None):
-#         log.info("Interval automatically set")
-#         interval = abs(d.index[0]-d.index[1]).seconds//(1*60)
-#         print(interval)
-#         #round to nearest 10 minutes
-#         interval = round(interval,-1)
-#         RESAMPLE_INTERVAL = interval #could simplify this
-
-#     rdata = d.resample(str(interval)+'T').mean()
-#     rdata.index = rdata.reset_index()[0].dt.strftime('%Y-%m-%dT%H:%M:%S')
-#     return rdata.reset_index().values
-
-# def resample2(data, interval=60):
-#     print("Resampleing...", data[0], data[-1], len(data))
-#     data = np.array(data)
-#     global RESAMPLE_INTERVAL
-#     values = data[:, 1]
-#     times = data[:, 0]
-#     num = len(data)//3
-#     start_time = datetime.strptime(datetime.strftime(datetime.strptime(times[0], "%Y-%m-%dT%H:%M:%S"), "%Y-%m-%dT%H:%M"), "%Y-%m-%dT%H:%M")
-#     end_time = datetime.strptime(datetime.strftime(datetime.strptime(times[-1], "%Y-%m-%dT%H:%M:%S"), "%Y-%m-%dT%H:%M"), "%Y-%m-%dT%H:%M")
-    
-#     dates_list = [timedelta(minutes=60*i) + start_time for i in range(0, num)]
-#     rdata = signal.resample(values, num)
-#     odates = times.astype('datetime64')
-#     result = np.column_stack((dates_list,rdata))
-
-#     return result
-
-# """ Not actually resampling just making missing values be nan """
-# def resample(input_data, input_dates, data, interval=60):
-#     print("Resampleing...", data[0], data[-1], len(data))
-#     global RESAMPLE_INTERVAL
-#     data = np.array(data)
-#     dates = np.array(data[:,0]).astype('datetime64')
-
-#     data[:, 0] = dates.astype('datetime64')
-#     input_dates = np.array(input_dates).astype('datetime64')
-#     final_data = np.array([[0,0]])
-
-#     # for i in range(0, len(input_dates)):
-#     #     if(input_dates[i] == input[i]):
-#     #         pass
-#     #     elif(input_dates[i] < dates[i]):
-#     #         np.insert(data, i, [input_dates[i], float('nan')])
-#     #         dates = data[:,0]
-#     #     elif(input_data[i] > dates[i]): 
-#     #         # this means there is a reference value without a corrsoponding real value so we remove it
-#     #         np.delete(data, i)
-
-#     #or
-#     for i in range(0, len(input_dates)):
-#         #replace inserts with i and j 
-#         if(len(dates)<=i):
-#             final_data = np.append(final_data, [[input_dates[i], float('nan')]], axis=0)           
-#             data = np.append(data, [[np.datetime64('NaT'), float('nan')]], axis=0)
-#             dates = np.array(data[:,0]).astype('datetime64')
-#         elif(input_dates[i] == dates[i]):
-#             final_data = np.append(final_data, [[input_dates[i], data[i, 1]]], axis=0)
-#         elif(input_dates[i] < dates[i]):
-#             final_data = np.append(final_data, [[input_dates[i], float('nan')]], axis=0)
-#             data = np.insert(data, i, [input_dates[i], float('nan')], axis=0)
-#             dates = np.array(data[:,0]).astype('datetime64')
-#             # i -=1
-#         elif(input_dates[i] > dates[i]): 
-#             # this means there is a reference value without a corrsoponding real value so we remove it
-#             data = np.delete(data, i, axis=0)
-#             dates = np.array(data[:,0]).astype('datetime64')
-#             i-=1
-#             pass 
-#         else:
-#             print("Unnacounted case")
-        
-#     return final_data[0:]
-
-""" Not actually resampling just making missing values be nan """
+""" """
 def find_reference_mask(input_data, input_dates, refA, refB, refC, refD, SQI):
     refD = np.array(refD) #k
     refD_date = np.array(refD[:,0]).astype('datetime64')
@@ -154,17 +69,10 @@ def find_reference_mask(input_data, input_dates, refA, refB, refC, refD, SQI):
     refC = refC[:,1].astype(float)
 
     input_dates = np.array(input_dates).astype('datetime64')
-    # mask = np.ones(len(input_dates))*False
     mask = np.full(len(input_dates), False)
 
 
-    #     # mask other reference less than 150
-    #     mask |= ((refA < 150)|(refB < 150)|(refC < 150))
-    #     mask |= (np.abs(refD - refA) > 7000)|(np.abs(refD - refB) > 7000)|(np.abs(refD - refC) > 7000)
-
     i = j = k = m = n = p = 0
-    # for i,j in range(0, len(input_dates)):
-    # refD[len(refD)-5] = 5
     while(i<len(input_dates)):
         kn = 0
         if(input_dates[i] == SQI_date[j]):
@@ -208,7 +116,6 @@ def find_reference_mask(input_data, input_dates, refA, refB, refC, refD, SQI):
         n+=1
         p+=1
 
-    # print(mask)
     return mask
         
    
@@ -224,7 +131,6 @@ def run_filter(input_data, upper_threshold, lower_threshold, changing_rate,
         input_data_ref = reference_filter(input_data, refANode, refBNode, refCNode, refDNode, SQINode, start_time, finish_time, input_dates)
     else:
         input_data_ref = input_data.copy()
-    # input_data_ref = input_data.copy()
 
     # Directly from lambda_function.py
     if(not (np.isnan(upper_threshold)and np.isnan(lower_threshold))):
@@ -235,18 +141,6 @@ def run_filter(input_data, upper_threshold, lower_threshold, changing_rate,
 
     input_data_filtered_seocnd = changing_rate_filter(input_data_filtered,changing_rate)
    
-    ''' plot
-    from matplotlib import pyplot as plt
-
-    plt.plot(input_data, 'k.', input_data, 'k-', alpha = 0.4, linewidth=0.5, markersize=2)
-    plt.plot(input_data_ref, 'r.',  input_data_ref, 'r-', alpha = 0.4, linewidth=0.5, markersize=2)
-    plt.plot(input_data_filtered_seocnd, 'g.', input_data_filtered_seocnd, 'g-', linewidth=0.7, markersize=2)
-    plt.plot(lower_threshold*np.ones(len(input_data_ref)))
-    plt.plot(upper_threshold*np.ones(len(input_data_ref)))
-    plt.show()
-
-    ''' 
-
     # may be unneccesary 
     # convert pandas data frame to list
     f = input_data_filtered_seocnd.tolist()
@@ -259,14 +153,8 @@ def threshold_filter(input_data, upper_threshold, lower_threshold):
     mask = np.ones(len(input_data)) !=  np.ones(len(input_data))
     if(not np.isnan(lower_threshold)):
         mask |= np.less(input_data, lower_threshold, where=~np.isnan(input_data))
-        # mask |= (input_data<lower_threshold)
     if(not np.isnan(upper_threshold)):
         mask|=np.greater(input_data, upper_threshold, where=~np.isnan(input_data))
-        # mask |= (input_data>upper_threshold)
-
-    # this only produces a warning but remove for now
-    #mask1 = (input_data<lower_threshold)|(input_data>upper_threshold)
-    #print("---------", np.all(mask1==mask))
 
     input_data_filtered = input_data.copy()
     input_data_filtered[mask] = np.NAN
@@ -275,9 +163,7 @@ def threshold_filter(input_data, upper_threshold, lower_threshold):
     # linear interpolation to remove NAN
     
     mask = np.isnan(input_data_filtered)
-    #print("a",np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), input_data_filtered[~mask]))
     mask = mask_nan(mask,5) # change n to change size of uninterpolated consecutive nan
-    #print("b",np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), input_data_filtered[~mask]))
     input_data_filtered[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), input_data_filtered[~mask])
     return input_data_filtered
 
@@ -318,73 +204,14 @@ def reference_filter(input_data, refANode, refBNode, refCNode, refDNode, SQINode
 
     # the following takes a long time
     refA= ea.getData(refANode, start_time, finish_time + timedelta(seconds=1))
-    # insert start and end time so that the range varries across all of the array 
-    # have to be actual start and end time not the one passed in 
-    # refA_data.insert(0, [start_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
-    # refA_data.append([finish_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
-    # refA_data = resample(input_data, input_dates, np.asarray(refA_data), interval=RESAMPLE_INTERVAL)
-    # print(refA_data)
-    # refA = refA_data[:,1].astype(float)
-
     refB = ea.getData(refBNode, start_time, finish_time + timedelta(seconds=1))
-    # refB_data.insert(0, [start_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
-    # refB_data.append([finish_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
-    # refB_data = resample(input_data, input_dates, np.asarray(refB_data), interval=RESAMPLE_INTERVAL)
-    # refB = refB_data[:,1].astype(float)
-
     refC = ea.getData(refCNode, start_time, finish_time + timedelta(seconds=1))
-    # refC_data.insert(0, [start_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
-    # refC_data.append([finish_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
-    # refC_data = resample(input_data, input_dates, np.asarray(refC_data), interval=RESAMPLE_INTERVAL)
-    # refC = refC_data[:,1].astype(float)
-
     refD = ea.getData(refDNode, start_time, finish_time + timedelta(seconds=1))
-    # refD_data.insert(0, [start_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
-    # refD_data.append([finish_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
-    # refD_data = resample(input_data, input_dates, np.asarray(refD_data), interval=RESAMPLE_INTERVAL)
-    # refD = refD_data[:,1].astype(float)
-
     SQI = ea.getData(SQINode, start_time, finish_time + timedelta(seconds=1))
-    # SQI_data.insert(0, [start_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
-    # SQI_data.append([finish_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
-    # SQI_data  = resample(input_data, input_dates, np.asarray(SQI_data) , interval=RESAMPLE_INTERVAL)
-    # SQI = SQI_data[:,1].astype(float)
+   
     mask = find_reference_mask(input_data, input_dates, refA, refB, refC, refD, SQI)
     print("Lengths: ", len(input_data), len(refA), len(refB), len(refC), len(refD), len(SQI))
-    # exit()
 
-
-    # if(any(input_dates != refA_data[:, 0])):
-    #     print((input_dates != refA_data[:, 0])[0:10])
-    #     print("Note the same")
-    # mask = (input_dates == refA_data[:, 0]) & (input_dates == refB_data[:, 0]) 
-    # mask &=  (input_dates == refC_data[:, 0]) & (input_dates == refD_data[:, 0]) & (input_dates == SQI_data[:, 0])
-
-    # print(mask[0:200])
-    # try:
-    #     # mask values of RefD > 13000
-    #     mask  = refD < 13000 
-    #     # mask other reference less than 150
-    #     mask |= ((refA < 150)|(refB < 150)|(refC < 150))
-    #     # SQI < 0.8 or SQI > 1
-    #     mask |= (SQI<0.8)|(SQI>1)
-
-    #     mask |= (np.abs(refD - refA) > 7000)|(np.abs(refD - refB) > 7000)|(np.abs(refD - refC) > 7000)
-
-    #     # if(any(refD < 13000)):
-    #     #     print("1")
-    #     # if(any(((refA < 150)|(refB < 150)|(refC < 150)))):
-    #     #     print("2")
-    #     # if(any((SQI<0.8)|(SQI>1))):
-    #     #     print("3")
-    #     # if(any((np.abs(refD - refA) > 7000)|(np.abs(refD - refB) > 7000)|(np.abs(refD - refC) > 7000))):
-    #     #     print("4")
-    # except ValueError:
-    #     log.warning("The reference streams may have different numbers of data points \n No reference filter applied")
-    #     return input_data
-
-
- 
     if (len(mask) != len(input_data)):
         log.warning("The reference and value streams have different number of data points \n No reference filter applied")
         return input_data
@@ -439,8 +266,7 @@ def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode, 
         # the get in the eagle api is not inclusive so add one second to finish_time 
         # #     so that all the data including the last point is retrieved and the process will not be repeated 
         data = ea.getData(source_node, start_time, finish_time + timedelta(seconds=1)) # add one min here
-        #data = resample(data, interval=RESAMPLE_INTERVAL)
-        print("Filtering: ", start_time, finish_time, len(data), "; time_dif: ", start_time-finish_time, data[0])
+        print("Filtering: ", start_time, finish_time, len(data), "; time_dif: ", start_time-finish_time)
         # format data
         input_data = np.asarray(data)[:,1]   
         
@@ -537,32 +363,23 @@ def test_resample():
 
 
 if __name__ == "__main__":
-    # test_resample()
-    # exit()
-    # run()
-    # testEvent = {
-    #             "source_node": "5b177a5de4b05e726c7eeecc",
-    #             "dest_node": "5ca2a9604c52c40f17064dafa",
-    #             "upper_threshold": 2,
-    #             "lower_threshold": 1,
-    #             "changing_rate": 0.5
-    #             }
+
     # output on column 3
-    testEvent = {'Records': [{'EventSource': 'aws:sns', 
+    testEventRef = {'Records': [{'EventSource': 'aws:sns', 
                 'EventVersion': '1.0', 'EventSubscriptionArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'Sns': {'Type': 'Notification', 'MessageId': 'bc85683f-2efc-50c6-8314-3d51aff722d2', 'TopicArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate', 
                 'Subject': None, 
                 'Message': '{"source_node": "5c3578fc1bbcf10f7880ca5f", "dest_node": "5ca2a9604c52c40f17064db0", "refANode": "5c3578fc1bbcf10f7880ca62", "refBNode": "5c3578fc1bbcf10f7880ca63", "refCNode": "5c3578fc1bbcf10f7880ca64", "refDNode": "5c3578fc1bbcf10f7880ca65", "SQINode": "5c3578fc1bbcf10f7880ca61", "upper_threshold": "2", "lower_threshold": "0", "changing_rate": "0.5"}', 
                 'Timestamp': '2019-06-03T01:58:35.515Z', 'SignatureVersion': '1', 'Signature': 'MD2dPjKLTGTijU1s+vPuE699sSM7vquQHQFpVBtqECLEX+4psmZeT7oAMSZY5yCAtS2QKesiE4/lR9ezBENfmmTy/TrWyqguyY+4RO121nzlMWN3FN/IPdbNJU2yvsYby7//PwIJDvgN2KgoAhZPoW92bJtFAxOlMKmnNSsfCPM7lH0FF4M2pyvmzbyauFoFhJfdr0hRWfcPnmmMSusr8rc9Y0wdEtR37qexQ99GR8w2KWMZE8VWPNc8ZdXSeE3sLv7floxaxCIqWcS3nm6pJiN/B0YzDBIJvVEIa492qKm8lPd34MCRG6lLH05VJw3KwkOQLbabpJoP43lKhDZdkQ==', 'SigningCertUrl': 'https://sns.ap-southeast-2.amazonaws.com/SimpleNotificationService-6aad65c2f9911b05cd53efda11f913f9.pem', 'UnsubscribeUrl': 'https://sns.ap-southeast-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'MessageAttributes': {}}}]}
     
-    # testEvent = {'Records': [{'EventSource': 'aws:sns', 
-    #             'EventVersion': '1.0', 'EventSubscriptionArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'Sns': {'Type': 'Notification', 'MessageId': 'bc85683f-2efc-50c6-8314-3d51aff722d2', 'TopicArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate', 
-    #             'Subject': None, 
-    #             'Message': '{"source_node": "5c3578fc1bbcf10f7880ca5f", "dest_node": "5ca2a9604c52c40f17064db0", "upper_threshold": "1", "lower_threshold": "0.05", "changing_rate": "0.05"}', 
-    #             'Timestamp': '2019-06-03T01:58:35.515Z', 'SignatureVersion': '1', 'Signature': 'MD2dPjKLTGTijU1s+vPuE699sSM7vquQHQFpVBtqECLEX+4psmZeT7oAMSZY5yCAtS2QKesiE4/lR9ezBENfmmTy/TrWyqguyY+4RO121nzlMWN3FN/IPdbNJU2yvsYby7//PwIJDvgN2KgoAhZPoW92bJtFAxOlMKmnNSsfCPM7lH0FF4M2pyvmzbyauFoFhJfdr0hRWfcPnmmMSusr8rc9Y0wdEtR37qexQ99GR8w2KWMZE8VWPNc8ZdXSeE3sLv7floxaxCIqWcS3nm6pJiN/B0YzDBIJvVEIa492qKm8lPd34MCRG6lLH05VJw3KwkOQLbabpJoP43lKhDZdkQ==', 'SigningCertUrl': 'https://sns.ap-southeast-2.amazonaws.com/SimpleNotificationService-6aad65c2f9911b05cd53efda11f913f9.pem', 'UnsubscribeUrl': 'https://sns.ap-southeast-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'MessageAttributes': {}}}]}
-    # main(testEvent, None)
+    testEvent = {'Records': [{'EventSource': 'aws:sns', 
+                'EventVersion': '1.0', 'EventSubscriptionArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'Sns': {'Type': 'Notification', 'MessageId': 'bc85683f-2efc-50c6-8314-3d51aff722d2', 'TopicArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate', 
+                'Subject': None, 
+                'Message': '{"source_node": "5c3578fc1bbcf10f7880ca5f", "dest_node": "5ca2a9604c52c40f17064db0", "upper_threshold": "1", "lower_threshold": "0.05", "changing_rate": "0.05"}', 
+                'Timestamp': '2019-06-03T01:58:35.515Z', 'SignatureVersion': '1', 'Signature': 'MD2dPjKLTGTijU1s+vPuE699sSM7vquQHQFpVBtqECLEX+4psmZeT7oAMSZY5yCAtS2QKesiE4/lR9ezBENfmmTy/TrWyqguyY+4RO121nzlMWN3FN/IPdbNJU2yvsYby7//PwIJDvgN2KgoAhZPoW92bJtFAxOlMKmnNSsfCPM7lH0FF4M2pyvmzbyauFoFhJfdr0hRWfcPnmmMSusr8rc9Y0wdEtR37qexQ99GR8w2KWMZE8VWPNc8ZdXSeE3sLv7floxaxCIqWcS3nm6pJiN/B0YzDBIJvVEIa492qKm8lPd34MCRG6lLH05VJw3KwkOQLbabpJoP43lKhDZdkQ==', 'SigningCertUrl': 'https://sns.ap-southeast-2.amazonaws.com/SimpleNotificationService-6aad65c2f9911b05cd53efda11f913f9.pem', 'UnsubscribeUrl': 'https://sns.ap-southeast-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'MessageAttributes': {}}}]}
+
     import time
     start = time.clock()
-    main(testEvent, None)
+    main(testEventRef, None)
     fin = time.clock()
     print("Time: %f" % (fin-start))
 

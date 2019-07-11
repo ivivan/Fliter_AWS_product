@@ -9,7 +9,7 @@ def main(event, context):
     #get all node from S3
     ea = eagle()
     try:
-        nodes = ea.getFileAWSJSON('digiscapegbr', 'filterSettings', 'filterSettings.json')["nodes"]
+        nodes = ea.getFileAWSJSON('digiscapegbr', 'filterSettings', 'filterSettingsReference.json')["nodes"]
     except Exception as e:
         log.error("There was an error in importing the node settings file.")
         print(e)
@@ -27,6 +27,17 @@ def main(event, context):
         settings['upper_threshold'] = node['upperThreshold']
         settings['lower_threshold'] = node['lowerThreshold']
         settings['changing_rate'] = node['changingRate']
+
+        try:
+            settings['refANode'] = node['refANode']
+            settings['refBNode'] = node['refBNode']
+            settings['refCNode'] = node['refCNode']
+            settings['refDNode'] = node['refDNode']
+            settings['SQINode'] = node['SQINode']
+        except:
+            pass
+
+ 
         # invoke lambda using these 
             # just invokin giflterdata is fine
         
