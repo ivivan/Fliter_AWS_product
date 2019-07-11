@@ -48,7 +48,7 @@ def mask_nan(mask, n):
     return mask  
 
 """ resample to mean, interval in minutes"""
-def resample(data, interval=60):
+def resample3(data, interval=60):
     print("Resampleing...", data[0], data[-1], len(data))
     global RESAMPLE_INTERVAL
     d = pd.DataFrame(data)
@@ -68,21 +68,22 @@ def resample(data, interval=60):
     rdata.index = rdata.reset_index()[0].dt.strftime('%Y-%m-%dT%H:%M:%S')
     return rdata.reset_index().values
 
-def resample2(data, interval=60):
+def resample(data, interval=60):
     print("Resampleing...", data[0], data[-1], len(data))
+    data = np.array(data)
     global RESAMPLE_INTERVAL
     values = data[:, 1]
     times = data[:, 0]
-    num = len(data)/3
+    num = len(data)//3
     start_time = datetime.strptime(datetime.strftime(datetime.strptime(times[0], "%Y-%m-%dT%H:%M:%S"), "%Y-%m-%dT%H:%M"), "%Y-%m-%dT%H:%M")
     end_time = datetime.strptime(datetime.strftime(datetime.strptime(times[-1], "%Y-%m-%dT%H:%M:%S"), "%Y-%m-%dT%H:%M"), "%Y-%m-%dT%H:%M")
     
-    dates_list = [datetime.timedelta(minutes=60*i) + start_time for i in range(0, num)]
+    dates_list = [timedelta(minutes=60*i) + start_time for i in range(0, num)]
     rdata = signal.resample(values, num)
     odates = times.astype('datetime64')
     result = np.column_stack((dates_list,rdata))
 
-    return rdata
+    return result
 
 
 """takes the node, loads data and runs all  filters on it"""
