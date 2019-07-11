@@ -47,88 +47,171 @@ def mask_nan(mask, n):
     #print(mask) 
     return mask  
 
-""" resample to mean, interval in minutes"""
-def resample3(data, interval=60):
-    print("Resampleing...", data[0], data[-1], len(data))
-    global RESAMPLE_INTERVAL
-    d = pd.DataFrame(data)
-    d[0] = pd.to_datetime(d[0])
-    d.set_index(0, inplace=True, drop=False)
-    d[1] = d[1].astype(float)
+# """ resample to mean, interval in minutes"""
+# def resample3(data, interval=60):
+#     print("Resampleing...", data[0], data[-1], len(data))
+#     global RESAMPLE_INTERVAL
+#     d = pd.DataFrame(data)
+#     d[0] = pd.to_datetime(d[0])
+#     d.set_index(0, inplace=True, drop=False)
+#     d[1] = d[1].astype(float)
    
-    if(interval == None):
-        log.info("Interval automatically set")
-        interval = abs(d.index[0]-d.index[1]).seconds//(1*60)
-        print(interval)
-        #round to nearest 10 minutes
-        interval = round(interval,-1)
-        RESAMPLE_INTERVAL = interval #could simplify this
+#     if(interval == None):
+#         log.info("Interval automatically set")
+#         interval = abs(d.index[0]-d.index[1]).seconds//(1*60)
+#         print(interval)
+#         #round to nearest 10 minutes
+#         interval = round(interval,-1)
+#         RESAMPLE_INTERVAL = interval #could simplify this
 
-    rdata = d.resample(str(interval)+'T').mean()
-    rdata.index = rdata.reset_index()[0].dt.strftime('%Y-%m-%dT%H:%M:%S')
-    return rdata.reset_index().values
+#     rdata = d.resample(str(interval)+'T').mean()
+#     rdata.index = rdata.reset_index()[0].dt.strftime('%Y-%m-%dT%H:%M:%S')
+#     return rdata.reset_index().values
 
-def resample2(data, interval=60):
-    print("Resampleing...", data[0], data[-1], len(data))
-    data = np.array(data)
-    global RESAMPLE_INTERVAL
-    values = data[:, 1]
-    times = data[:, 0]
-    num = len(data)//3
-    start_time = datetime.strptime(datetime.strftime(datetime.strptime(times[0], "%Y-%m-%dT%H:%M:%S"), "%Y-%m-%dT%H:%M"), "%Y-%m-%dT%H:%M")
-    end_time = datetime.strptime(datetime.strftime(datetime.strptime(times[-1], "%Y-%m-%dT%H:%M:%S"), "%Y-%m-%dT%H:%M"), "%Y-%m-%dT%H:%M")
+# def resample2(data, interval=60):
+#     print("Resampleing...", data[0], data[-1], len(data))
+#     data = np.array(data)
+#     global RESAMPLE_INTERVAL
+#     values = data[:, 1]
+#     times = data[:, 0]
+#     num = len(data)//3
+#     start_time = datetime.strptime(datetime.strftime(datetime.strptime(times[0], "%Y-%m-%dT%H:%M:%S"), "%Y-%m-%dT%H:%M"), "%Y-%m-%dT%H:%M")
+#     end_time = datetime.strptime(datetime.strftime(datetime.strptime(times[-1], "%Y-%m-%dT%H:%M:%S"), "%Y-%m-%dT%H:%M"), "%Y-%m-%dT%H:%M")
     
-    dates_list = [timedelta(minutes=60*i) + start_time for i in range(0, num)]
-    rdata = signal.resample(values, num)
-    odates = times.astype('datetime64')
-    result = np.column_stack((dates_list,rdata))
+#     dates_list = [timedelta(minutes=60*i) + start_time for i in range(0, num)]
+#     rdata = signal.resample(values, num)
+#     odates = times.astype('datetime64')
+#     result = np.column_stack((dates_list,rdata))
 
-    return result
+#     return result
+
+# """ Not actually resampling just making missing values be nan """
+# def resample(input_data, input_dates, data, interval=60):
+#     print("Resampleing...", data[0], data[-1], len(data))
+#     global RESAMPLE_INTERVAL
+#     data = np.array(data)
+#     dates = np.array(data[:,0]).astype('datetime64')
+
+#     data[:, 0] = dates.astype('datetime64')
+#     input_dates = np.array(input_dates).astype('datetime64')
+#     final_data = np.array([[0,0]])
+
+#     # for i in range(0, len(input_dates)):
+#     #     if(input_dates[i] == input[i]):
+#     #         pass
+#     #     elif(input_dates[i] < dates[i]):
+#     #         np.insert(data, i, [input_dates[i], float('nan')])
+#     #         dates = data[:,0]
+#     #     elif(input_data[i] > dates[i]): 
+#     #         # this means there is a reference value without a corrsoponding real value so we remove it
+#     #         np.delete(data, i)
+
+#     #or
+#     for i in range(0, len(input_dates)):
+#         #replace inserts with i and j 
+#         if(len(dates)<=i):
+#             final_data = np.append(final_data, [[input_dates[i], float('nan')]], axis=0)           
+#             data = np.append(data, [[np.datetime64('NaT'), float('nan')]], axis=0)
+#             dates = np.array(data[:,0]).astype('datetime64')
+#         elif(input_dates[i] == dates[i]):
+#             final_data = np.append(final_data, [[input_dates[i], data[i, 1]]], axis=0)
+#         elif(input_dates[i] < dates[i]):
+#             final_data = np.append(final_data, [[input_dates[i], float('nan')]], axis=0)
+#             data = np.insert(data, i, [input_dates[i], float('nan')], axis=0)
+#             dates = np.array(data[:,0]).astype('datetime64')
+#             # i -=1
+#         elif(input_dates[i] > dates[i]): 
+#             # this means there is a reference value without a corrsoponding real value so we remove it
+#             data = np.delete(data, i, axis=0)
+#             dates = np.array(data[:,0]).astype('datetime64')
+#             i-=1
+#             pass 
+#         else:
+#             print("Unnacounted case")
+        
+#     return final_data[0:]
 
 """ Not actually resampling just making missing values be nan """
-def resample(input_data, input_dates, data, interval=60):
-    print("Resampleing...", data[0], data[-1], len(data))
-    global RESAMPLE_INTERVAL
-    data = np.array(data)
-    dates = np.array(data[:,0]).astype('datetime64')
+def find_reference_mask(input_data, input_dates, refA, refB, refC, refD, SQI):
+    refD = np.array(refD) #k
+    refD_date = np.array(refD[:,0]).astype('datetime64')
+    refD = refD[:,1].astype(float)
 
-    data[:, 0] = dates.astype('datetime64')
+    SQI = np.array(SQI) #j
+    SQI_date = np.array(SQI[:,0]).astype('datetime64')
+    SQI = SQI[:,1].astype(float)
+
+    refA = np.array(refA) #m
+    refA_date = np.array(refA[:,0]).astype('datetime64')
+    refA = refA[:,1].astype(float)
+
+    refB = np.array(refB) #n
+    refB_date = np.array(refB[:,0]).astype('datetime64')
+    refB = refB[:,1].astype(float)
+
+    refC = np.array(refC) #p
+    refC_date = np.array(refC[:,0]).astype('datetime64')
+    refC = refC[:,1].astype(float)
+
     input_dates = np.array(input_dates).astype('datetime64')
-    final_data = np.array([[0,0]])
+    # mask = np.ones(len(input_dates))*False
+    mask = np.full(len(input_dates), False)
 
-    # for i in range(0, len(input_dates)):
-    #     if(input_dates[i] == input[i]):
-    #         pass
-    #     elif(input_dates[i] < dates[i]):
-    #         np.insert(data, i, [input_dates[i], float('nan')])
-    #         dates = data[:,0]
-    #     elif(input_data[i] > dates[i]): 
-    #         # this means there is a reference value without a corrsoponding real value so we remove it
-    #         np.delete(data, i)
 
-    #or
-    for i in range(0, len(input_dates)):
-        if(len(dates)<=i):
-            final_data = np.append(final_data, [[input_dates[i], float('nan')]], axis=0)           
-            data = np.append(data, [[np.datetime64('NaT'), float('nan')]], axis=0)
-            dates = np.array(data[:,0]).astype('datetime64')
-        elif(input_dates[i] == dates[i]):
-            final_data = np.append(final_data, [[input_dates[i], data[i, 1]]], axis=0)
-        elif(input_dates[i] < dates[i]):
-            final_data = np.append(final_data, [[input_dates[i], float('nan')]], axis=0)
-            data = np.insert(data, i, [input_dates[i], float('nan')], axis=0)
-            dates = np.array(data[:,0]).astype('datetime64')
-            # i -=1
-        elif(input_dates[i] > dates[i]): 
-            # this means there is a reference value without a corrsoponding real value so we remove it
-            data = np.delete(data, i, axis=0)
-            dates = np.array(data[:,0]).astype('datetime64')
-            i-=1
-            pass 
-        else:
-            print("Unnacounted case")
+    #     # mask other reference less than 150
+    #     mask |= ((refA < 150)|(refB < 150)|(refC < 150))
+    #     mask |= (np.abs(refD - refA) > 7000)|(np.abs(refD - refB) > 7000)|(np.abs(refD - refC) > 7000)
+
+    i = j = k = m = n = p = 0
+    # for i,j in range(0, len(input_dates)):
+    # refD[len(refD)-5] = 5
+    while(i<len(input_dates)):
+        kn = 0
+        if(input_dates[i] == SQI_date[j]):
+            mask[i] =  (SQI[j]<0.8)|(SQI[j]>1)
+        elif(input_dates[i] < SQI_date[j]):
+            mask[i] = False
+            j -= 1
+        elif(input_dates[i] > SQI_date[j]): 
+            j+=1
+
+        if(input_dates[i] == refD_date[k]):
+            mask[i] |=  refD[k]<13000
+        elif(input_dates[i] < refD_date[k]):
+            mask[i] |= False
+            kn += 1
+        elif(input_dates[i] > refD_date[k]): 
+            kn-=1
+
+        if(input_dates[i] == refA_date[m]):
+            mask[i] |=  (refA[m]<150)|(np.abs(refD[m] - refA[m]) > 7000)
+        elif(input_dates[i] < refA_date[m]):
+            mask[i] |= False
+            m -= 1
+
+        if(input_dates[i] == refB_date[n]):
+            mask[i] |=  (refB[n]<150)|(np.abs(refD[n] - refB[n]) > 7000)
+        elif(input_dates[i] < refB_date[n]):
+            mask[i] |= False
+            n -= 1
+
+        if(input_dates[i] == refC_date[p]):
+            mask[i] |=  (refC[p]<150)|(np.abs(refD[p] - refC[p]) > 7000)
+        elif(input_dates[i] < refC_date[p]):
+            mask[i] |= False
+            p -= 1
+
+        i+=1
+        j+=1
+        k=k+1-kn
+        m+=1
+        n+=1
+        p+=1
+
+    # print(mask)
+    return mask
         
-    return final_data[0:]
+   
 
 
 """takes the node, loads data and runs all  filters on it"""
@@ -152,7 +235,7 @@ def run_filter(input_data, upper_threshold, lower_threshold, changing_rate,
 
     input_data_filtered_seocnd = changing_rate_filter(input_data_filtered,changing_rate)
    
-    ''' plot 
+    ''' plot
     from matplotlib import pyplot as plt
 
     plt.plot(input_data, 'k.', input_data, 'k-', alpha = 0.4, linewidth=0.5, markersize=2)
@@ -234,40 +317,41 @@ def reference_filter(input_data, refANode, refBNode, refCNode, refDNode, SQINode
     ea = eagle() # new instance but could pass around
 
     # the following takes a long time
-    refA_data = ea.getData(refANode, start_time, finish_time + timedelta(seconds=1))
+    refA= ea.getData(refANode, start_time, finish_time + timedelta(seconds=1))
     # insert start and end time so that the range varries across all of the array 
     # have to be actual start and end time not the one passed in 
-    refA_data.insert(0, [start_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
-    refA_data.append([finish_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
-    refA_data = resample(input_data, input_dates, np.asarray(refA_data), interval=RESAMPLE_INTERVAL)
+    # refA_data.insert(0, [start_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
+    # refA_data.append([finish_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
+    # refA_data = resample(input_data, input_dates, np.asarray(refA_data), interval=RESAMPLE_INTERVAL)
     # print(refA_data)
-    refA = refA_data[:,1].astype(float)
+    # refA = refA_data[:,1].astype(float)
 
-    refB_data = ea.getData(refBNode, start_time, finish_time + timedelta(seconds=1))
-    refB_data.insert(0, [start_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
-    refB_data.append([finish_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
-    refB_data = resample(input_data, input_dates, np.asarray(refB_data), interval=RESAMPLE_INTERVAL)
-    refB = refB_data[:,1].astype(float)
+    refB = ea.getData(refBNode, start_time, finish_time + timedelta(seconds=1))
+    # refB_data.insert(0, [start_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
+    # refB_data.append([finish_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
+    # refB_data = resample(input_data, input_dates, np.asarray(refB_data), interval=RESAMPLE_INTERVAL)
+    # refB = refB_data[:,1].astype(float)
 
-    refC_data = ea.getData(refCNode, start_time, finish_time + timedelta(seconds=1))
-    refC_data.insert(0, [start_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
-    refC_data.append([finish_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
-    refC_data = resample(input_data, input_dates, np.asarray(refC_data), interval=RESAMPLE_INTERVAL)
-    refC = refC_data[:,1].astype(float)
+    refC = ea.getData(refCNode, start_time, finish_time + timedelta(seconds=1))
+    # refC_data.insert(0, [start_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
+    # refC_data.append([finish_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
+    # refC_data = resample(input_data, input_dates, np.asarray(refC_data), interval=RESAMPLE_INTERVAL)
+    # refC = refC_data[:,1].astype(float)
 
-    refD_data = ea.getData(refDNode, start_time, finish_time + timedelta(seconds=1))
-    refD_data.insert(0, [start_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
-    refD_data.append([finish_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
-    refD_data = resample(input_data, input_dates, np.asarray(refD_data), interval=RESAMPLE_INTERVAL)
-    refD = refD_data[:,1].astype(float)
+    refD = ea.getData(refDNode, start_time, finish_time + timedelta(seconds=1))
+    # refD_data.insert(0, [start_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
+    # refD_data.append([finish_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
+    # refD_data = resample(input_data, input_dates, np.asarray(refD_data), interval=RESAMPLE_INTERVAL)
+    # refD = refD_data[:,1].astype(float)
 
-    SQI_data = refA_data = ea.getData(SQINode, start_time, finish_time + timedelta(seconds=1))
-    SQI_data.insert(0, [start_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
-    SQI_data.append([finish_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
-    SQI_data  = resample(input_data, input_dates, np.asarray(SQI_data) , interval=RESAMPLE_INTERVAL)
-    SQI = SQI_data[:,1].astype(float)
-
+    SQI = ea.getData(SQINode, start_time, finish_time + timedelta(seconds=1))
+    # SQI_data.insert(0, [start_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
+    # SQI_data.append([finish_time.strftime('%Y-%m-%dT%H:%M:%S'), 'Nan'])
+    # SQI_data  = resample(input_data, input_dates, np.asarray(SQI_data) , interval=RESAMPLE_INTERVAL)
+    # SQI = SQI_data[:,1].astype(float)
+    mask = find_reference_mask(input_data, input_dates, refA, refB, refC, refD, SQI)
     print("Lengths: ", len(input_data), len(refA), len(refB), len(refC), len(refD), len(SQI))
+    # exit()
 
 
     # if(any(input_dates != refA_data[:, 0])):
@@ -277,31 +361,30 @@ def reference_filter(input_data, refANode, refBNode, refCNode, refDNode, SQINode
     # mask &=  (input_dates == refC_data[:, 0]) & (input_dates == refD_data[:, 0]) & (input_dates == SQI_data[:, 0])
 
     # print(mask[0:200])
-    try:
-        # mask values of RefD > 13000
-        mask  = refD < 13000 
-        # mask other reference less than 150
-        mask |= ((refA < 150)|(refB < 150)|(refC < 150))
-        # SQI < 0.8 or SQI > 1
-        mask |= (SQI<0.8)|(SQI>1)
+    # try:
+    #     # mask values of RefD > 13000
+    #     mask  = refD < 13000 
+    #     # mask other reference less than 150
+    #     mask |= ((refA < 150)|(refB < 150)|(refC < 150))
+    #     # SQI < 0.8 or SQI > 1
+    #     mask |= (SQI<0.8)|(SQI>1)
 
-        mask |= (np.abs(refD - refA) > 7000)|(np.abs(refD - refB) > 7000)|(np.abs(refD - refC) > 7000)
+    #     mask |= (np.abs(refD - refA) > 7000)|(np.abs(refD - refB) > 7000)|(np.abs(refD - refC) > 7000)
 
-        # if(any(refD < 13000)):
-        #     print("1")
-        # if(any(((refA < 150)|(refB < 150)|(refC < 150)))):
-        #     print("2")
-        # if(any((SQI<0.8)|(SQI>1))):
-        #     print("3")
-        # if(any((np.abs(refD - refA) > 7000)|(np.abs(refD - refB) > 7000)|(np.abs(refD - refC) > 7000))):
-        #     print("4")
-    except ValueError:
-        log.warning("The reference streams may have different numbers of data points \n No reference filter applied")
-        return input_data
+    #     # if(any(refD < 13000)):
+    #     #     print("1")
+    #     # if(any(((refA < 150)|(refB < 150)|(refC < 150)))):
+    #     #     print("2")
+    #     # if(any((SQI<0.8)|(SQI>1))):
+    #     #     print("3")
+    #     # if(any((np.abs(refD - refA) > 7000)|(np.abs(refD - refB) > 7000)|(np.abs(refD - refC) > 7000))):
+    #     #     print("4")
+    # except ValueError:
+    #     log.warning("The reference streams may have different numbers of data points \n No reference filter applied")
+    #     return input_data
 
 
  
-
     if (len(mask) != len(input_data)):
         log.warning("The reference and value streams have different number of data points \n No reference filter applied")
         return input_data
@@ -341,9 +424,9 @@ def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode, 
         dest_metadata['currentTime'] = source_metadata['oldestTime']# + timedelta(days=FILTER_MIN_WINDOW)
 
     ### for testing filtering all
-    dest_metadata['currentTime'] = source_metadata['oldestTime']
+    # dest_metadata['currentTime'] = source_metadata['oldestTime']
     ### for testing when already filtered
-    # dest_metadata['currentTime'] = source_metadata['currentTime'] - timedelta(days=4)
+    # dest_metadata['currentTime'] = source_metadata['currentTime'] - timedelta(days=1)
 
     #print("Time difference: ", dest_metadata['currentTime'],  source_metadata['currentTime'], dest_metadata['currentTime']< source_metadata['currentTime'])
    
