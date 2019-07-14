@@ -12,7 +12,7 @@ from itertools import count, groupby
 from scipy import signal
 
 FILTER_MIN_WINDOW = 10 #days
-RESAMPLE_INTERVAL = None
+# RESAMPLE_INTERVAL = None # no longer resampling
 
 """
 Note:
@@ -29,8 +29,7 @@ Note:
 """ Sets values to False if there are more than n consecutive True values
     This allows for us to interpolate only the NAN values in the data where there 
         are fewer than n consecutive NANs, only True values in the mask are interpolated """
-# appear to be working but could test better
-# this could very likely be more efficient
+# this could likely be more efficient
 def mask_nan(mask, n):
     i=0
     while i<(len(mask)-n-1):
@@ -43,10 +42,10 @@ def mask_nan(mask, n):
         else:
             i+=1
 
-    #print(mask) 
     return mask  
 
-""" """
+""" Calculate the mask for filtering values from regerence values, 
+    True values in the mask are the data filtered out"""
 def find_reference_mask(input_data, input_dates, refA, refB, refC, refD, SQI):
     refD = np.array(refD) #k
     refD_date = np.array(refD[:,0]).astype('datetime64')
@@ -118,10 +117,8 @@ def find_reference_mask(input_data, input_dates, refA, refB, refC, refD, SQI):
 
     return mask
         
-   
 
-
-"""takes the node, loads data and runs all  filters on it"""
+"""Given node, loads data and runs all filters on it"""
 def run_filter(input_data, upper_threshold, lower_threshold, changing_rate,  
                 start_time, finish_time, 
                 refANode, refBNode, refCNode, refDNode, SQINode, input_dates):
@@ -161,7 +158,6 @@ def threshold_filter(input_data, upper_threshold, lower_threshold):
     
     # interpolate
     # linear interpolation to remove NAN
-    
     mask = np.isnan(input_data_filtered)
     mask = mask_nan(mask,5) # change n to change size of uninterpolated consecutive nan
     input_data_filtered[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), input_data_filtered[~mask])
@@ -170,6 +166,7 @@ def threshold_filter(input_data, upper_threshold, lower_threshold):
 def changing_rate_filter(input_data_filtered,changing_rate):
     # Changing rate filter - spliced
     # filtered data is replaced by NAN
+
     # find intervals of non-nan data
     indecies = np.asarray(np.argwhere(~np.isnan(input_data_filtered)))[:,0]
     ranges = [] # will be an array of start and end index for non nan blocks
@@ -198,11 +195,10 @@ def changing_rate_filter(input_data_filtered,changing_rate):
 
     return input_data_filtered_seocnd
 
-def reference_filter(input_data, refANode, refBNode, refCNode, refDNode, SQINode, start_time, finish_time, input_dates):
-    global RESAMPLE_INTERVAL
+def reference_filter(input_data, refANode, refBNode, refCNode, refDNode, 
+                    SQINode, start_time, finish_time, input_dates):
     ea = eagle() # new instance but could pass around
 
-    # the following takes a long time
     refA= ea.getData(refANode, start_time, finish_time + timedelta(seconds=1))
     refB = ea.getData(refBNode, start_time, finish_time + timedelta(seconds=1))
     refC = ea.getData(refCNode, start_time, finish_time + timedelta(seconds=1))
@@ -210,11 +206,12 @@ def reference_filter(input_data, refANode, refBNode, refCNode, refDNode, SQINode
     SQI = ea.getData(SQINode, start_time, finish_time + timedelta(seconds=1))
    
     mask = find_reference_mask(input_data, input_dates, refA, refB, refC, refD, SQI)
-    print("Lengths: ", len(input_data), len(refA), len(refB), len(refC), len(refD), len(SQI))
+
 
     if (len(mask) != len(input_data)):
         log.warning("The reference and value streams have different number of data points \n No reference filter applied")
         return input_data
+    # filter from mask
     input_data_filtered = input_data.copy()
     input_data_filtered[mask] = np.NAN
     
@@ -225,26 +222,22 @@ def reference_filter(input_data, refANode, refBNode, refCNode, refDNode, SQINode
     return input_data_filtered
 
 """ gets data from eagle io and if there is new data filters it
-and reuloads it 
-
-Could have this in run filter or in the filter loop but not sure where so 
-having seperate
+and reuploads it 
 """
 def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode, SQINode, upper_threshold, lower_threshold, changing_rate):
     # get input data from node and convert
     ea = eagle()
-    global FILTER_MIN_WINDOW, RESAMPLE_INTERVAL
+    global FILTER_MIN_WINDOW
 
     source_metadata = ea.getLocationMetadata(source_node)
     dest_metadata = ea.getLocationMetadata(dest_node)
-    # what do these look like?
-    #print(source_metadata)
 
     # check if flag for empty stream is set
     if(source_metadata['currentTime'] == 0):
         log.warning("No data in source node. No filtering.")
         return 0
-   
+
+    # destination node is empty
     if(dest_metadata['currentTime'] == 0):
         # use all of the available data
         log.warning("Empty time fields in destination node, requesting all source data.")
@@ -259,14 +252,14 @@ def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode, 
    
     # check that there is new data
     if dest_metadata['currentTime'] < source_metadata['currentTime']:
-        # get all new data
+        # get all new data plus a delay window
         start_time =  dest_metadata['currentTime'] - timedelta(days=FILTER_MIN_WINDOW)
         finish_time = source_metadata['currentTime']
        
         # the get in the eagle api is not inclusive so add one second to finish_time 
         # #     so that all the data including the last point is retrieved and the process will not be repeated 
-        data = ea.getData(source_node, start_time, finish_time + timedelta(seconds=1)) # add one min here
-        print("Filtering: ", start_time, finish_time, len(data), "; time_dif: ", start_time-finish_time)
+        data = ea.getData(source_node, start_time, finish_time + timedelta(seconds=1)) 
+        print("Filtering: ", start_time, finish_time, "Length: ", len(data), "Time_dif: ", start_time-finish_time)
         # format data
         input_data = np.asarray(data)[:,1]   
         
@@ -276,7 +269,7 @@ def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode, 
         start_time = datetime.strptime(input_dates[0], '%Y-%m-%dT%H:%M:%S')
         finish_time = datetime.strptime(input_dates[-1], '%Y-%m-%dT%H:%M:%S')
         
-        #all new data is nan so no filtering occurs
+        # all new data is nan so no filtering occurs
         if(np.isnan(input_data).all()):
             return 0
         
@@ -292,11 +285,10 @@ def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode, 
         res = ea.updateData(dest_node, ts)
 
         return 1
-    print("No new data, no filtering occurred", dest_metadata['currentTime'], source_metadata['currentTime'] )
+    log.warning("No new data, no filtering occurred", dest_metadata['currentTime'], source_metadata['currentTime'] )
     return 0
 
 def main(event, context):
-    global RESAMPLE_INTERVAL
     log.basicConfig(level=log.WARNING)
 
     ''' only required for sns '''
@@ -324,10 +316,10 @@ def main(event, context):
         refDNode = None
         SQINode = None
 
-    try:
-        RESAMPLE_INTERVAL = float(event['interval'])
-    except:
-        RESAMPLE_INTERVAL = 60
+    # try:
+    #     RESAMPLE_INTERVAL = float(event['interval'])
+    # except:
+    #     RESAMPLE_INTERVAL = 60
     
     
     print("Processing ", source_node, dest_node)
@@ -381,7 +373,7 @@ if __name__ == "__main__":
     start = time.clock()
     main(testEventRef, None)
     fin = time.clock()
-    print("Time: %f" % (fin-start))
+    print("Time: %f sec" % (fin-start))
 
     # powershell -Command Measure-Command {python filterNode.py}
     # python -m timeit -n 1 -s "from filterNode import run" "run()"
