@@ -8,11 +8,8 @@ import json
 import logging as log
 from datetime import datetime, timedelta
 from itertools import count, groupby
-# import pandas as pd
-from scipy import signal
 
 FILTER_MIN_WINDOW = 10 #days
-# RESAMPLE_INTERVAL = None # no longer resampling
 
 """
 Note:
@@ -125,14 +122,16 @@ def run_filter(input_data, upper_threshold, lower_threshold, changing_rate,
 
     # Run the reference filter if ref is defined
     if(refANode and refBNode and refCNode and refDNode and SQINode):
-        input_data_ref = reference_filter(input_data, refANode, refBNode, refCNode, refDNode, SQINode, start_time, finish_time, input_dates)
+        input_data_ref = reference_filter(input_data, refANode, refBNode, refCNode, 
+                        refDNode, SQINode, start_time, finish_time, input_dates)
     else:
         input_data_ref = input_data.copy()
 
     # Directly from lambda_function.py
-    if(not (np.isnan(upper_threshold)and np.isnan(lower_threshold))):
+    if(not (np.isnan(upper_threshold) and np.isnan(lower_threshold))):
         input_data_filtered = threshold_filter(input_data_ref, upper_threshold, lower_threshold)
     else:
+        # filter is not run if neither threshold is set
         input_data_filtered = input_data_ref.copy()
         log.info("No threshold filter")
 
@@ -224,7 +223,8 @@ def reference_filter(input_data, refANode, refBNode, refCNode, refDNode,
 """ gets data from eagle io and if there is new data filters it
 and reuploads it 
 """
-def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode, SQINode, upper_threshold, lower_threshold, changing_rate):
+def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode, 
+                SQINode, upper_threshold, lower_threshold, changing_rate):
     # get input data from node and convert
     ea = eagle()
     global FILTER_MIN_WINDOW
@@ -241,15 +241,13 @@ def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode, 
     if(dest_metadata['currentTime'] == 0):
         # use all of the available data
         log.warning("Empty time fields in destination node, requesting all source data.")
-        dest_metadata['currentTime'] = source_metadata['oldestTime']# + timedelta(days=FILTER_MIN_WINDOW)
+        dest_metadata['currentTime'] = source_metadata['oldestTime']
 
     ### for testing filtering all
     # dest_metadata['currentTime'] = source_metadata['oldestTime']
     ### for testing when already filtered
     # dest_metadata['currentTime'] = source_metadata['currentTime'] - timedelta(days=1)
 
-    #print("Time difference: ", dest_metadata['currentTime'],  source_metadata['currentTime'], dest_metadata['currentTime']< source_metadata['currentTime'])
-   
     # check that there is new data
     if dest_metadata['currentTime'] < source_metadata['currentTime']:
         # get all new data plus a delay window
@@ -285,7 +283,7 @@ def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode, 
         res = ea.updateData(dest_node, ts)
 
         return 1
-    log.warning("No new data, no filtering occurred", dest_metadata['currentTime'], source_metadata['currentTime'] )
+    log.warning("No new data, no filtering occurred")
     return 0
 
 def main(event, context):
@@ -316,11 +314,6 @@ def main(event, context):
         refDNode = None
         SQINode = None
 
-    # try:
-    #     RESAMPLE_INTERVAL = float(event['interval'])
-    # except:
-    #     RESAMPLE_INTERVAL = 60
-    
     
     print("Processing ", source_node, dest_node)
     res = filter_data(source_node, dest_node, 
@@ -334,6 +327,7 @@ def main(event, context):
     
         return response
 
+######
 
 def run():
     testEvent = {'Records': [{'EventSource': 'aws:sns', 
