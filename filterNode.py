@@ -33,13 +33,36 @@ def mask_nan(mask, n):
         if((mask[i:i+n]==True).all()):
             mask[i:i+n]=False
             i+=(n)
-            while(mask[i]==True and len(mask) < i):
+            while(mask[i]==True and i<len(mask) ):
                 mask[i] = False
                 i+=1
         else:
             i+=1
 
     return mask  
+
+"""
+also returns information relevant for ml
+"""
+def mask_nan_info(mask, n):
+    print(mask)
+    gaps = []
+    i=0
+    while i<(len(mask)-n-1):
+        if((mask[i:i+n]==True).all()):
+            # mask[i:i+n]=False
+            gap_info = [i] # first missing
+            i+=(n)
+            while(mask[i]==True and i<len(mask)):
+                # mask[i] = False
+                i+=1
+            gap_info.append(i) # end of gap
+            print("gi", gap_info)
+            gaps.append(gap_info)
+        else:
+            i+=1
+
+    return mask, gaps     
 
 """ Calculate the mask for filtering values from regerence values, 
     True values in the mask are the data filtered out"""
@@ -135,7 +158,31 @@ def run_filter(input_data, upper_threshold, lower_threshold, changing_rate,
         input_data_filtered = input_data_ref.copy()
         log.info("No threshold filter")
 
-    input_data_filtered_seocnd = changing_rate_filter(input_data_filtered,changing_rate)
+    input_data_filtered_seocnd= changing_rate_filter(input_data_filtered,changing_rate)
+
+    mask = np.isnan(input_data_filtered_seocnd)
+    mask, gaps = mask_nan_info(mask, 5)
+    print("chekcing gaps", gaps)
+    pre_length = 24
+    info = {}
+    for gap in gaps:
+        gap_length = gap[1]-gap[0]
+        if(gap[0]>pre_length):
+            pre_data = input_data_filtered_seocnd[gap[0]-pre_length:gap[0]]
+        else: 
+            pre_data = input_data_filtered_seocnd[0:gap[0]]
+        gap_index = input_dates[gap[0]:gap[1]]
+
+        info[gap[0]]= {'length': gap_length, "input": pre_data.tolist(), "pred_index": gap_index.tolist()}
+    # print(info)
+        
+    # convert to json
+    gap_info_file = open("gap_info.json", "w")
+    json.dump(info, gap_info_file)
+    # gap_info = json.dumps(info)
+    # upload to s3
+    #ea.uploadDataAWSJSON()
+
    
     # may be unneccesary 
     # convert pandas data frame to list
@@ -191,6 +238,8 @@ def changing_rate_filter(input_data_filtered,changing_rate):
         mask = mask_nan(mask,5)
         data_seocnd[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), data_seocnd[~mask])
         input_data_filtered_seocnd[ranges[i][0]:ranges[i][1]] = data_seocnd    
+      
+ 
 
     return input_data_filtered_seocnd
 
@@ -246,13 +295,15 @@ def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode,
     ### for testing filtering all
     # dest_metadata['currentTime'] = source_metadata['oldestTime']
     ### for testing when already filtered
-    # dest_metadata['currentTime'] = source_metadata['currentTime'] - timedelta(days=1)
+    dest_metadata['currentTime'] = source_metadata['currentTime'] - timedelta(hours=3)
+  
 
     # check that there is new data
     if dest_metadata['currentTime'] < source_metadata['currentTime']:
         # get all new data plus a delay window
-        start_time =  dest_metadata['currentTime'] - timedelta(days=FILTER_MIN_WINDOW)
+        start_time =  dest_metadata['currentTime'] #- timedelta(days=FILTER_MIN_WINDOW)
         finish_time = source_metadata['currentTime']
+        print(start_time, finish_time)
        
         # the get in the eagle api is not inclusive so add one second to finish_time 
         # #     so that all the data including the last point is retrieved and the process will not be repeated 
@@ -263,6 +314,7 @@ def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode,
         
         input_data = input_data.astype(float)
         input_dates = np.asarray(data)[:,0]  
+        input_data = np.array([1, 1, float('nan'),  float('nan'),  float('nan'),  float('nan'),  float('nan'),  float('nan'),  float('nan'), 1])
         
         start_time = datetime.strptime(input_dates[0], '%Y-%m-%dT%H:%M:%S')
         finish_time = datetime.strptime(input_dates[-1], '%Y-%m-%dT%H:%M:%S')
@@ -280,7 +332,7 @@ def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode,
         ts = ea.createTimeSeriesJSON(data,filtered_data)
 
         # update destination on Eagle with filtered data
-        res = ea.updateData(dest_node, ts)
+        # res = ea.updateData(dest_node, ts)
 
         return 1
     log.warning("No new data, no filtering occurred")
