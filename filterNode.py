@@ -169,11 +169,14 @@ def run_filter(input_data, upper_threshold, lower_threshold, changing_rate,
         gap_length = gap[1]-gap[0]
         if(gap[0]>pre_length):
             pre_data = input_data_filtered_seocnd[gap[0]-pre_length:gap[0]]
+            pre_index = input_dates[gap[0]-pre_length:gap[0]]
         else: 
             pre_data = input_data_filtered_seocnd[0:gap[0]]
+            pre_index = input_dates[0:gap[0]]
         gap_index = input_dates[gap[0]:gap[1]]
 
-        info[gap[0]]= {'length': gap_length, "input": pre_data.tolist(), "pred_index": gap_index.tolist()}
+        info[gap[0]]= {'length': gap_length, "input": pre_data.tolist(), 
+                        "input_dates": pre_index.tolist(),  "pred_dates": gap_index.tolist()}
     # print(info)
         
     # convert to json
