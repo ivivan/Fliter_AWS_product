@@ -179,12 +179,17 @@ def run_filter(input_data, upper_threshold, lower_threshold, changing_rate,
                         "input_dates": pre_index.tolist(),  "pred_dates": gap_index.tolist()}
     # print(info)
         
-    # convert to json
+    # convert to json (need to read dump and redump)
+
+    gap_info_file = open("gap_info.json", "r")
+    past_info = json.load(gap_info_file)
+    past_info.update(info)
+    print(past_info)
     gap_info_file = open("gap_info.json", "w")
-    json.dump(info, gap_info_file)
+    json.dump(past_info, gap_info_file)
     # gap_info = json.dumps(info)
     # upload to s3
-    #ea.uploadDataAWSJSON()
+    #ea.uploadDataAWSJSON(, , "gap_info.json")
 
    
     # may be unneccesary 
