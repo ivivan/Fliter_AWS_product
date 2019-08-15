@@ -33,7 +33,7 @@ def mask_nan(mask, n):
         if((mask[i:i+n]==True).all()):
             mask[i:i+n]=False
             i+=(n)
-            while(mask[i]==True and len(mask) < i):
+            while(mask[i]==True and len(mask) > i):
                 mask[i] = False
                 i+=1
         else:
@@ -67,7 +67,7 @@ def find_reference_mask(input_data, input_dates, refA, refB, refC, refD, SQI):
     input_dates = np.array(input_dates).astype('datetime64')
     mask = np.full(len(input_dates), False)
 
-
+    # r = []
     i = j = k = m = n = p = 0
     while(i<len(input_dates)):
         kn = 0
@@ -88,11 +88,15 @@ def find_reference_mask(input_data, input_dates, refA, refB, refC, refD, SQI):
             kn-=1
 
         if(input_dates[i] == refA_date[m]):
+            # from matplotlib import pyplot as plt
             mask[i] |=  (refA[m]<150)|(np.abs(refD[m] - refA[m]) > 7000)
+            # plt.plot(np.abs(refD[m] - refA[m]), 'o')
+            # r = r + [np.abs(refD[m] - refA[m])/1000]
+
         elif(input_dates[i] < refA_date[m]):
             mask[i] |= False
             m -= 1
-
+        
         if(input_dates[i] == refB_date[n]):
             mask[i] |=  (refB[n]<150)|(np.abs(refD[n] - refB[n]) > 7000)
         elif(input_dates[i] < refB_date[n]):
@@ -105,12 +109,16 @@ def find_reference_mask(input_data, input_dates, refA, refB, refC, refD, SQI):
             mask[i] |= False
             p -= 1
 
+        
+
         i+=1
         j+=1
         k=k+1-kn
         m+=1
         n+=1
         p+=1
+    # plt.figure()
+    # plt.plot(r, 'o', markersize = 3)
 
     return mask
         
@@ -136,6 +144,19 @@ def run_filter(input_data, upper_threshold, lower_threshold, changing_rate,
         log.info("No threshold filter")
 
     input_data_filtered_seocnd = changing_rate_filter(input_data_filtered,changing_rate)
+
+    ''' plot '''
+    from matplotlib import pyplot as plt
+
+    plt.plot(input_data, 'r.',  markersize=4)
+    plt.plot(input_data_ref, 'r.',  input_data_ref, 'r-', alpha = 0.4, linewidth=0.5, markersize=2)
+    plt.plot(input_data_filtered_seocnd, 'g.', markersize=4)
+    plt.plot(lower_threshold*np.ones(len(input_data_ref)))
+    plt.plot(upper_threshold*np.ones(len(input_data_ref)))
+    plt.show()
+
+    ''' '''
+
    
     # may be unneccesary 
     # convert pandas data frame to list
@@ -148,9 +169,9 @@ def threshold_filter(input_data, upper_threshold, lower_threshold):
 
     mask = np.ones(len(input_data)) !=  np.ones(len(input_data))
     if(not np.isnan(lower_threshold)):
-        mask |= np.less(input_data, lower_threshold, where=~np.isnan(input_data))
+        mask |= np.less_equal(input_data, lower_threshold, where=~np.isnan(input_data))
     if(not np.isnan(upper_threshold)):
-        mask|=np.greater(input_data, upper_threshold, where=~np.isnan(input_data))
+        mask|=np.greater_equal(input_data, upper_threshold, where=~np.isnan(input_data))
 
     input_data_filtered = input_data.copy()
     input_data_filtered[mask] = np.NAN
@@ -189,7 +210,7 @@ def changing_rate_filter(input_data_filtered,changing_rate):
         # linear interpolation to remove NAN
         mask = np.isnan(data_seocnd) #is necessary because some NAN values not from changing rage mask
         mask = mask_nan(mask,5)
-        data_seocnd[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), data_seocnd[~mask])
+        # data_seocnd[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), data_seocnd[~mask])
         input_data_filtered_seocnd[ranges[i][0]:ranges[i][1]] = data_seocnd    
 
     return input_data_filtered_seocnd
@@ -217,7 +238,8 @@ def reference_filter(input_data, refANode, refBNode, refCNode, refDNode,
     # interpolate
     mask = np.isnan(input_data_filtered)
     mask = mask_nan(mask,5)
-    input_data_filtered[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), input_data_filtered[~mask])
+    # input_data_filtered[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), input_data_filtered[~mask])
+    input_data_filtered[mask] = np.NAN
     return input_data_filtered
 
 """ gets data from eagle io and if there is new data filters it
@@ -247,6 +269,9 @@ def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode,
     # dest_metadata['currentTime'] = source_metadata['oldestTime']
     ### for testing when already filtered
     # dest_metadata['currentTime'] = source_metadata['currentTime'] - timedelta(days=1)
+
+    # dest_metadata['currentTime'] = datetime.strptime("2019-05-17T0:0:0.000Z", '%Y-%m-%dT%H:%M:%S.%fZ').replace(microsecond=0)
+    # source_metadata['currentTime'] = datetime.strptime("2019-05-31T0:0:0.000Z", '%Y-%m-%dT%H:%M:%S.%fZ').replace(microsecond=0)
 
     # check that there is new data
     if dest_metadata['currentTime'] < source_metadata['currentTime']:
@@ -360,7 +385,7 @@ if __name__ == "__main__":
     testEvent = {'Records': [{'EventSource': 'aws:sns', 
                 'EventVersion': '1.0', 'EventSubscriptionArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'Sns': {'Type': 'Notification', 'MessageId': 'bc85683f-2efc-50c6-8314-3d51aff722d2', 'TopicArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate', 
                 'Subject': None, 
-                'Message': '{"source_node": "5c3578fc1bbcf10f7880ca5f", "dest_node": "5ca2a9604c52c40f17064db0", "upper_threshold": "1", "lower_threshold": "0.05", "changing_rate": "0.05"}', 
+                'Message': '{"source_node": "5b177a5ae4b05e726c7eeeb5", "dest_node": "5ca2a9604c52c40f17064db1", "upper_threshold": "nan", "lower_threshold": "0.001", "changing_rate": "0.5"}', 
                 'Timestamp': '2019-06-03T01:58:35.515Z', 'SignatureVersion': '1', 'Signature': 'MD2dPjKLTGTijU1s+vPuE699sSM7vquQHQFpVBtqECLEX+4psmZeT7oAMSZY5yCAtS2QKesiE4/lR9ezBENfmmTy/TrWyqguyY+4RO121nzlMWN3FN/IPdbNJU2yvsYby7//PwIJDvgN2KgoAhZPoW92bJtFAxOlMKmnNSsfCPM7lH0FF4M2pyvmzbyauFoFhJfdr0hRWfcPnmmMSusr8rc9Y0wdEtR37qexQ99GR8w2KWMZE8VWPNc8ZdXSeE3sLv7floxaxCIqWcS3nm6pJiN/B0YzDBIJvVEIa492qKm8lPd34MCRG6lLH05VJw3KwkOQLbabpJoP43lKhDZdkQ==', 'SigningCertUrl': 'https://sns.ap-southeast-2.amazonaws.com/SimpleNotificationService-6aad65c2f9911b05cd53efda11f913f9.pem', 'UnsubscribeUrl': 'https://sns.ap-southeast-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'MessageAttributes': {}}}]}
 
     import time
