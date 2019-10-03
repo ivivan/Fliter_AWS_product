@@ -11,6 +11,7 @@ import logging
 # Set up logger
 log = logging.getLogger()
 log.setLevel(logging.WARNING)
+p25apikey = 'GBBbwpSHH54zF58e7Xwp25zFUZ8xJ5c3TxHUff1B'
 
 class eagleFilter():
     # Historic eagle io url API
@@ -25,8 +26,30 @@ class eagleFilter():
     BUCKET_NAME = 'digiscapegbr'
     DIRECTORY = 'filterdata'
 
+    # api key set to p25 api for backward compatibility, will be overriden if a new api is passed in
+    api_key = 'GBBbwpSHH54zF58e7Xwp25zFUZ8xJ5c3TxHUff1B'
+
+
     # Set up logger
     #log.basicConfig(level=log.WARNING)
+
+    # # used for backward compatibility from before api keys were added explicitely
+    def __init__(self, key=None):
+        # self.api_key = key
+        #or
+        # print(key)
+        
+        # print(self.api_key)    
+        if(key):
+            self.api_key = key
+
+    # @classmethod
+    # def init_api(cls, key) -> 'eagleFilter':
+    #     print(key)
+    #     print(api_key)
+    #     self.api_key = key
+    #     print(self.api_key)
+    #     return cls()
 
     # A simple call to upload a file to S3 storage
     def uploadDataAWSJSON(self,bucket_name, directory, filename):
@@ -97,9 +120,7 @@ class eagleFilter():
 
     #this function is the base funtion to retreive metadat from Eagle.
     def getLocationMetadata(self, node):
-
-
-        headers = {'X-Api-Key':'GBBbwpSHH54zF58e7Xwp25zFUZ8xJ5c3TxHUff1B'}
+        headers = {'X-Api-Key': self.api_key}
 
 
         jsonData = requests.get(self.data_api+node, headers=headers).json()
@@ -109,7 +130,7 @@ class eagleFilter():
                         jsonData['error'].get('message'))))
 
         #print("Time %s value %s" %(jsonData.get('currentTime'), jsonData.get('currentValue')))
-        #print(jsonData)
+        # print("###########", jsonData['currentTime'])
 
         try:
             currentTime = datetime.strptime(jsonData['currentTime'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(microsecond=0)
@@ -154,14 +175,13 @@ class eagleFilter():
 
     # this function is the base funtion to retreive current and prevvtime from Eagle.
     def getcurrentPrevTime(self, node):
-        headers = {'X-Api-Key': 'GBBbwpSHH54zF58e7Xwp25zFUZ8xJ5c3TxHUff1B'}
+        headers = {'X-Api-Key': self.api_key}
 
         jsonData = requests.get(self.data_api + node, headers=headers).json()
         if(jsonData.get('error') != None):
             raise(Exception("Error %s in loading Eagle stream data: %s." % 
                         (jsonData['error'].get('code'), 
                         jsonData['error'].get('message'))))
-
 
         currentTime = jsonData['currentTime']
         prevTime = jsonData['previousTime']
@@ -173,7 +193,7 @@ class eagleFilter():
         #using a read API key
         # print(startTime, endTime)
 
-        headers = {'X-Api-Key':'GBBbwpSHH54zF58e7Xwp25zFUZ8xJ5c3TxHUff1B'}
+        headers = {'X-Api-Key':self.api_key}
         data = []
 
         #Get utc representation
@@ -200,12 +220,12 @@ class eagleFilter():
             print (e)
             # need to do something else here
 
-        #print(hist_values)
+        # print(hist_values)
         if len(hist_values['data']) > 0:
             rows = []
             for i in range(0,len(hist_values['data']) ):
                 ts = hist_values['data'][i]['ts']
-                if '0' in hist_values['data'][i]['f']:
+                if '0' in hist_values['data'][i]['f'] and 'v' in hist_values['data'][i]['f']['0']:
                     val = hist_values['data'][i]['f']['0']['v']
                 else:
                     val = 0

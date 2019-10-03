@@ -33,7 +33,7 @@ def mask_nan(mask, n):
         if((mask[i:i+n]==True).all()):
             mask[i:i+n]=False
             i+=(n)
-            while(mask[i]==True and len(mask) > i):
+            while(i<len(mask) and mask[i]==True):
                 mask[i] = False
                 i+=1
         else:
@@ -43,7 +43,7 @@ def mask_nan(mask, n):
 
 """ Calculate the mask for filtering values from regerence values, 
     True values in the mask are the data filtered out"""
-def find_reference_mask(input_data, input_dates, refA, refB, refC, refD, SQI):
+def find_reference_mask_nico(input_data, input_dates, refA, refB, refC, refD, SQI):
     refD = np.array(refD) #k
     refD_date = np.array(refD[:,0]).astype('datetime64')
     refD = refD[:,1].astype(float)
@@ -108,7 +108,6 @@ def find_reference_mask(input_data, input_dates, refA, refB, refC, refD, SQI):
         elif(input_dates[i] < refC_date[p]):
             mask[i] |= False
             p -= 1
-
         
 
         i+=1
@@ -121,17 +120,67 @@ def find_reference_mask(input_data, input_dates, refA, refB, refC, refD, SQI):
     # plt.plot(r, 'o', markersize = 3)
 
     return mask
+
+def find_reference_mask_opus(input_data, input_dates, abs360, abs210, SQI):
+    SQI = np.array(SQI) #j
+    SQI_date = np.array(SQI[:,0]).astype('datetime64')
+    SQI = SQI[:,1].astype(float)
+
+    abs360 = np.array(abs360) #m
+    abs360_date = np.array(abs360[:,0]).astype('datetime64')
+    abs360 = abs360[:,1].astype(float)
+
+    abs210 = np.array(abs210) #n
+    abs210_date = np.array(abs210[:,0]).astype('datetime64')
+    abs210 = abs210[:,1].astype(float)
+
+    input_dates = np.array(input_dates).astype('datetime64')
+    mask = np.full(len(input_dates), False)
+
+    # not every data point has a corrosponding reference value so dates must
+    # be checked before comparing
+    i = j = m = n  = 0
+    while(i<len(input_dates)):
+        if(input_dates[i] == SQI_date[j]):
+            mask[i] =  (SQI[j]<0.8)|(SQI[j]>1)
+        elif(input_dates[i] < SQI_date[j]):
+            mask[i] = False
+            j -= 1
+        elif(input_dates[i] > SQI_date[j]): 
+            j+=1
+
+        if(input_dates[i] == abs360_date[m]):
+            mask[i] |=  (abs360[m]>=0.8)
+        elif(input_dates[i] < abs360_date[m]):
+            mask[i] |= False
+            m -= 1
+        
+        if(input_dates[i] == abs210_date[n]):
+            mask[i] |=  (abs210[n]>=3)
+        elif(input_dates[i] < abs210_date[n]):
+            mask[i] |= False
+            n -= 1
+
+        i+=1
+        j+=1
+        m+=1
+        n+=1
+    
+    return mask
         
 
 """Given node, loads data and runs all filters on it"""
 def run_filter(input_data, upper_threshold, lower_threshold, changing_rate,  
                 start_time, finish_time, 
-                refANode, refBNode, refCNode, refDNode, SQINode, input_dates):
+                refANode, refBNode, refCNode, refDNode, SQINode, input_dates, api_key):
 
     # Run the reference filter if ref is defined
     if(refANode and refBNode and refCNode and refDNode and SQINode):
         input_data_ref = reference_filter(input_data, refANode, refBNode, refCNode, 
-                        refDNode, SQINode, start_time, finish_time, input_dates)
+                        refDNode, SQINode, start_time, finish_time, input_dates,api_key)
+    elif(refANode and refBNode and SQINode):
+        input_data_ref = reference_filter(input_data, refANode, refBNode, refCNode, 
+                        refDNode, SQINode, start_time, finish_time, input_dates, api_key)
     else:
         input_data_ref = input_data.copy()
 
@@ -145,7 +194,7 @@ def run_filter(input_data, upper_threshold, lower_threshold, changing_rate,
 
     input_data_filtered_seocnd = changing_rate_filter(input_data_filtered,changing_rate)
 
-    ''' plot '''
+    ''' plot 
     from matplotlib import pyplot as plt
 
     plt.plot(input_data, 'r.',  markersize=4)
@@ -155,7 +204,7 @@ def run_filter(input_data, upper_threshold, lower_threshold, changing_rate,
     plt.plot(upper_threshold*np.ones(len(input_data_ref)))
     plt.show()
 
-    ''' '''
+    ''' 
 
    
     # may be unneccesary 
@@ -216,16 +265,23 @@ def changing_rate_filter(input_data_filtered,changing_rate):
     return input_data_filtered_seocnd
 
 def reference_filter(input_data, refANode, refBNode, refCNode, refDNode, 
-                    SQINode, start_time, finish_time, input_dates):
-    ea = eagle() # new instance but could pass around
+                    SQINode, start_time, finish_time, input_dates, api_key):
+    ea = eagle(api_key) # new instance but could pass around
 
     refA= ea.getData(refANode, start_time, finish_time + timedelta(seconds=1))
     refB = ea.getData(refBNode, start_time, finish_time + timedelta(seconds=1))
-    refC = ea.getData(refCNode, start_time, finish_time + timedelta(seconds=1))
-    refD = ea.getData(refDNode, start_time, finish_time + timedelta(seconds=1))
+    if(refCNode and refDNode):
+        refC = ea.getData(refCNode, start_time, finish_time + timedelta(seconds=1))
+        refD = ea.getData(refDNode, start_time, finish_time + timedelta(seconds=1))
+    else:
+        refC = None
+        refD = None
     SQI = ea.getData(SQINode, start_time, finish_time + timedelta(seconds=1))
-   
-    mask = find_reference_mask(input_data, input_dates, refA, refB, refC, refD, SQI)
+    
+    if(refC and refD):
+        mask = find_reference_mask_nico(input_data, input_dates, refA, refB, refC, refD, SQI)
+    else:
+        mask = find_reference_mask_opus(input_data, input_dates, refA, refB, SQI)
 
 
     if (len(mask) != len(input_data)):
@@ -246,13 +302,17 @@ def reference_filter(input_data, refANode, refBNode, refCNode, refDNode,
 and reuploads it 
 """
 def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode, 
-                SQINode, upper_threshold, lower_threshold, changing_rate):
+                SQINode, upper_threshold, lower_threshold, changing_rate, api_key):
     # get input data from node and convert
-    ea = eagle()
+    # the source and desticnation nodes are not neccesarilty in same eagle zone
+    # could make a passable api_key for both, default is p25 key
+    ea = eagle(api_key)
+    ea_dest = eagle()
+
     global FILTER_MIN_WINDOW
 
     source_metadata = ea.getLocationMetadata(source_node)
-    dest_metadata = ea.getLocationMetadata(dest_node)
+    dest_metadata = ea_dest.getLocationMetadata(dest_node)
 
     # check if flag for empty stream is set
     if(source_metadata['currentTime'] == 0):
@@ -274,6 +334,7 @@ def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode,
     # source_metadata['currentTime'] = datetime.strptime("2019-05-31T0:0:0.000Z", '%Y-%m-%dT%H:%M:%S.%fZ').replace(microsecond=0)
 
     # check that there is new data
+    # print(dest_metadata['currentTime'], source_metadata['currentTime'], dest_metadata['currentTime'] < source_metadata['currentTime'])
     if dest_metadata['currentTime'] < source_metadata['currentTime']:
         # get all new data plus a delay window
         start_time =  dest_metadata['currentTime'] - timedelta(days=FILTER_MIN_WINDOW)
@@ -282,7 +343,7 @@ def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode,
         # the get in the eagle api is not inclusive so add one second to finish_time 
         # #     so that all the data including the last point is retrieved and the process will not be repeated 
         data = ea.getData(source_node, start_time, finish_time + timedelta(seconds=1)) 
-        print("Filtering: ", start_time, finish_time, "Length: ", len(data), "Time_dif: ", start_time-finish_time)
+        # print("Filtering: ", start_time, finish_time, "Length: ", len(data), "Time_dif: ", start_time-finish_time)
         # format data
         input_data = np.asarray(data)[:,1]   
         
@@ -299,13 +360,13 @@ def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode,
         # run all realtime filters
         filtered_data = run_filter(input_data, upper_threshold, 
                 lower_threshold, changing_rate, start_time, finish_time, 
-                refANode, refBNode, refCNode, refDNode, SQINode, input_dates)
+                refANode, refBNode, refCNode, refDNode, SQINode, input_dates, api_key)
 
         # Create JTS JSON time series of filtered data  
         ts = ea.createTimeSeriesJSON(data,filtered_data)
 
         # update destination on Eagle with filtered data
-        res = ea.updateData(dest_node, ts)
+        res = ea_dest.updateData(dest_node, ts)
 
         return 1
     log.warning("No new data, no filtering occurred")
@@ -327,23 +388,52 @@ def main(event, context):
     lower_threshold = float(event['lower_threshold'])
     changing_rate = float(event['changing_rate'])
     try:
-        refANode = event['refANode']
-        refBNode = event['refBNode']
-        refCNode = event['refCNode']
-        refDNode = event['refDNode']
-        SQINode = event['SQINode']
+        api_key = event['api_key']
     except:
+        api_key = ""
+
+    try:
+        sensor_type = event['sensor']
+    except:
+        sensor_type = None 
         refANode = None
         refBNode = None
         refCNode = None
         refDNode = None
         SQINode = None
+    
+    if(sensor_type == 'nico'):
+        try:
+            refANode = event['refANode']
+            refBNode = event['refBNode']
+            refCNode = event['refCNode']
+            refDNode = event['refDNode']
+            SQINode = event['SQINode']
+        except:
+            refANode = None
+            refBNode = None
+            refCNode = None
+            refDNode = None
+            SQINode = None
+    elif(sensor_type == 'opus'):
+        try:
+            refANode = event['abs360Node']
+            refBNode = event['abs210Node']
+            refCNode = None
+            refDNode = None
+            SQINode = event['SQINode']
+        except:
+            refANode = None
+            refBNode = None
+            refCNode = None
+            refDNode = None
+            SQINode = None
 
     
     print("Processing ", source_node, dest_node)
     res = filter_data(source_node, dest_node, 
             refANode, refBNode, refCNode, refDNode, SQINode,
-            upper_threshold, lower_threshold, changing_rate)
+            upper_threshold, lower_threshold, changing_rate, api_key)
     if(res == 1):
         response = {
                 "statusCode": 200,
@@ -379,7 +469,7 @@ if __name__ == "__main__":
     testEventRef = {'Records': [{'EventSource': 'aws:sns', 
                 'EventVersion': '1.0', 'EventSubscriptionArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'Sns': {'Type': 'Notification', 'MessageId': 'bc85683f-2efc-50c6-8314-3d51aff722d2', 'TopicArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate', 
                 'Subject': None, 
-                'Message': '{"source_node": "5c3578fc1bbcf10f7880ca5f", "dest_node": "5ca2a9604c52c40f17064db0", "refANode": "5c3578fc1bbcf10f7880ca62", "refBNode": "5c3578fc1bbcf10f7880ca63", "refCNode": "5c3578fc1bbcf10f7880ca64", "refDNode": "5c3578fc1bbcf10f7880ca65", "SQINode": "5c3578fc1bbcf10f7880ca61", "upper_threshold": "2", "lower_threshold": "0", "changing_rate": "0.5"}', 
+                'Message': '{"sensor": "nico", "source_node": "5c3578fc1bbcf10f7880ca5f", "dest_node": "5ca2a9604c52c40f17064db3", "refANode": "5c3578fc1bbcf10f7880ca62", "refBNode": "5c3578fc1bbcf10f7880ca63", "refCNode": "5c3578fc1bbcf10f7880ca64", "refDNode": "5c3578fc1bbcf10f7880ca65", "SQINode": "5c3578fc1bbcf10f7880ca61", "upper_threshold": "2", "lower_threshold": "0.01", "changing_rate": "0.5"}', 
                 'Timestamp': '2019-06-03T01:58:35.515Z', 'SignatureVersion': '1', 'Signature': 'MD2dPjKLTGTijU1s+vPuE699sSM7vquQHQFpVBtqECLEX+4psmZeT7oAMSZY5yCAtS2QKesiE4/lR9ezBENfmmTy/TrWyqguyY+4RO121nzlMWN3FN/IPdbNJU2yvsYby7//PwIJDvgN2KgoAhZPoW92bJtFAxOlMKmnNSsfCPM7lH0FF4M2pyvmzbyauFoFhJfdr0hRWfcPnmmMSusr8rc9Y0wdEtR37qexQ99GR8w2KWMZE8VWPNc8ZdXSeE3sLv7floxaxCIqWcS3nm6pJiN/B0YzDBIJvVEIa492qKm8lPd34MCRG6lLH05VJw3KwkOQLbabpJoP43lKhDZdkQ==', 'SigningCertUrl': 'https://sns.ap-southeast-2.amazonaws.com/SimpleNotificationService-6aad65c2f9911b05cd53efda11f913f9.pem', 'UnsubscribeUrl': 'https://sns.ap-southeast-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'MessageAttributes': {}}}]}
     
     testEvent = {'Records': [{'EventSource': 'aws:sns', 
@@ -387,10 +477,15 @@ if __name__ == "__main__":
                 'Subject': None, 
                 'Message': '{"source_node": "5b177a5ae4b05e726c7eeeb5", "dest_node": "5ca2a9604c52c40f17064db1", "upper_threshold": "nan", "lower_threshold": "0.001", "changing_rate": "0.5"}', 
                 'Timestamp': '2019-06-03T01:58:35.515Z', 'SignatureVersion': '1', 'Signature': 'MD2dPjKLTGTijU1s+vPuE699sSM7vquQHQFpVBtqECLEX+4psmZeT7oAMSZY5yCAtS2QKesiE4/lR9ezBENfmmTy/TrWyqguyY+4RO121nzlMWN3FN/IPdbNJU2yvsYby7//PwIJDvgN2KgoAhZPoW92bJtFAxOlMKmnNSsfCPM7lH0FF4M2pyvmzbyauFoFhJfdr0hRWfcPnmmMSusr8rc9Y0wdEtR37qexQ99GR8w2KWMZE8VWPNc8ZdXSeE3sLv7floxaxCIqWcS3nm6pJiN/B0YzDBIJvVEIa492qKm8lPd34MCRG6lLH05VJw3KwkOQLbabpJoP43lKhDZdkQ==', 'SigningCertUrl': 'https://sns.ap-southeast-2.amazonaws.com/SimpleNotificationService-6aad65c2f9911b05cd53efda11f913f9.pem', 'UnsubscribeUrl': 'https://sns.ap-southeast-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'MessageAttributes': {}}}]}
+    testEventOPUS = {'Records': [{'EventSource': 'aws:sns', 
+                'EventVersion': '1.0', 'EventSubscriptionArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'Sns': {'Type': 'Notification', 'MessageId': 'bc85683f-2efc-50c6-8314-3d51aff722d2', 'TopicArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate', 
+                'Subject': None, 
+                'Message': '{"sensor": "opus","api_key": "25NB4X5DmSvoiepq2P4alkO2nusfuTwiwaLdi3bP","source_node": "5bf8926ee4b080beda47449e", "dest_node": "5d93f09369bee90ccf3b4e5a", "upper_threshold": "nan", "lower_threshold": "nan", "changing_rate": "2", "abs360Node": "5bf8926fe4b080beda4744b0","abs210Node": "5bf8926fe4b080beda4744b4","SQINode": "5bf89270e4b080beda4744c5"}', 
+                'Timestamp': '2019-06-03T01:58:35.515Z', 'SignatureVersion': '1', 'Signature': 'MD2dPjKLTGTijU1s+vPuE699sSM7vquQHQFpVBtqECLEX+4psmZeT7oAMSZY5yCAtS2QKesiE4/lR9ezBENfmmTy/TrWyqguyY+4RO121nzlMWN3FN/IPdbNJU2yvsYby7//PwIJDvgN2KgoAhZPoW92bJtFAxOlMKmnNSsfCPM7lH0FF4M2pyvmzbyauFoFhJfdr0hRWfcPnmmMSusr8rc9Y0wdEtR37qexQ99GR8w2KWMZE8VWPNc8ZdXSeE3sLv7floxaxCIqWcS3nm6pJiN/B0YzDBIJvVEIa492qKm8lPd34MCRG6lLH05VJw3KwkOQLbabpJoP43lKhDZdkQ==', 'SigningCertUrl': 'https://sns.ap-southeast-2.amazonaws.com/SimpleNotificationService-6aad65c2f9911b05cd53efda11f913f9.pem', 'UnsubscribeUrl': 'https://sns.ap-southeast-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'MessageAttributes': {}}}]}
 
     import time
     start = time.clock()
-    main(testEventRef, None)
+    main(testEventOPUS, None)
     fin = time.clock()
     print("Time: %f sec" % (fin-start))
 
