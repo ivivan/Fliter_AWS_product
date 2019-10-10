@@ -72,7 +72,7 @@ def find_reference_mask_nico(input_data, input_dates, refA, refB, refC, refD, SQ
     while(i<len(input_dates)):
         kn = 0
         if(input_dates[i] == SQI_date[j]):
-            mask[i] =  (SQI[j]<0.8)|(SQI[j]>1)
+            mask[i] =  (SQI[j]<0.5)|(SQI[j]>1)
         elif(input_dates[i] < SQI_date[j]):
             mask[i] = False
             j -= 1
@@ -142,7 +142,7 @@ def find_reference_mask_opus(input_data, input_dates, abs360, abs210, SQI):
     i = j = m = n  = 0
     while(i<len(input_dates)):
         if(input_dates[i] == SQI_date[j]):
-            mask[i] =  (SQI[j]<0.8)|(SQI[j]>1)
+            mask[i] =  (SQI[j]<0.5)|(SQI[j]>1)
         elif(input_dates[i] < SQI_date[j]):
             mask[i] = False
             j -= 1
@@ -173,27 +173,34 @@ def find_reference_mask_opus(input_data, input_dates, abs360, abs210, SQI):
 def run_filter(input_data, upper_threshold, lower_threshold, changing_rate,  
                 start_time, finish_time, 
                 refANode, refBNode, refCNode, refDNode, SQINode, input_dates, api_key):
+    quality = np.zeros(len(input_data))
 
     # Run the reference filter if ref is defined
     if(refANode and refBNode and refCNode and refDNode and SQINode):
-        input_data_ref = reference_filter(input_data, refANode, refBNode, refCNode, 
+        input_data_ref, q1 = reference_filter(input_data, refANode, refBNode, refCNode, 
                         refDNode, SQINode, start_time, finish_time, input_dates,api_key)
+        quality += q1
     elif(refANode and refBNode and SQINode):
-        input_data_ref = reference_filter(input_data, refANode, refBNode, refCNode, 
+        input_data_ref, q1 = reference_filter(input_data, refANode, refBNode, refCNode, 
                         refDNode, SQINode, start_time, finish_time, input_dates, api_key)
+        quality += q1
     else:
         input_data_ref = input_data.copy()
 
     # Directly from lambda_function.py
     if(not (np.isnan(upper_threshold) and np.isnan(lower_threshold))):
-        input_data_filtered = threshold_filter(input_data_ref, upper_threshold, lower_threshold)
+        input_data_filtered, q2 = threshold_filter(input_data_ref, upper_threshold, lower_threshold)
+        quality += q2
     else:
         # filter is not run if neither threshold is set
         input_data_filtered = input_data_ref.copy()
         log.info("No threshold filter")
+    
 
-    input_data_filtered_seocnd = changing_rate_filter(input_data_filtered,changing_rate)
-
+    input_data_filtered_seocnd, q3 = changing_rate_filter(input_data_filtered,changing_rate)
+    # quality = np.array(149+np.zeros(len(input_data_filtered_seocnd)))
+    quality += q3 
+    # print(quality)
     ''' plot 
     from matplotlib import pyplot as plt
 
@@ -210,7 +217,7 @@ def run_filter(input_data, upper_threshold, lower_threshold, changing_rate,
     # may be unneccesary 
     # convert pandas data frame to list
     f = input_data_filtered_seocnd.tolist()
-    return f
+    return f, quality
 
 def threshold_filter(input_data, upper_threshold, lower_threshold):
     # apply threshold filter
@@ -224,13 +231,16 @@ def threshold_filter(input_data, upper_threshold, lower_threshold):
 
     input_data_filtered = input_data.copy()
     input_data_filtered[mask] = np.NAN
-    
     # interpolate
     # linear interpolation to remove NAN
     mask = np.isnan(input_data_filtered)
-    mask = mask_nan(mask,5) # change n to change size of uninterpolated consecutive nan
+    # mask = mask_nan(mask,5) # change n to change size of uninterpolated consecutive nan
     input_data_filtered[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), input_data_filtered[~mask])
-    return input_data_filtered
+
+    quality = np.zeros(len(input_data_filtered))
+    quality[mask] = 20
+
+    return input_data_filtered, quality
 
 def changing_rate_filter(input_data_filtered,changing_rate):
     # Changing rate filter - spliced
@@ -245,6 +255,7 @@ def changing_rate_filter(input_data_filtered,changing_rate):
 
     input_data_filtered_seocnd = input_data_filtered.copy()
     # calculate the changing rate filter for each range seperately
+    m = np.zeros(len(input_data_filtered))
     for i in range(0, len(ranges)):
         data = input_data_filtered[ranges[i][0]:ranges[i][1]]
         diff_index = np.diff(data)
@@ -259,10 +270,13 @@ def changing_rate_filter(input_data_filtered,changing_rate):
         # linear interpolation to remove NAN
         mask = np.isnan(data_seocnd) #is necessary because some NAN values not from changing rage mask
         mask = mask_nan(mask,5)
-        # data_seocnd[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), data_seocnd[~mask])
+        data_seocnd[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), data_seocnd[~mask])
         input_data_filtered_seocnd[ranges[i][0]:ranges[i][1]] = data_seocnd    
+        m[ranges[i][0]:ranges[i][1]] = mask    
 
-    return input_data_filtered_seocnd
+    quality = np.zeros(len(input_data_filtered_seocnd)) 
+    quality[m.astype(bool)] = 3
+    return input_data_filtered_seocnd, quality
 
 def reference_filter(input_data, refANode, refBNode, refCNode, refDNode, 
                     SQINode, start_time, finish_time, input_dates, api_key):
@@ -296,18 +310,20 @@ def reference_filter(input_data, refANode, refBNode, refCNode, refDNode,
     mask = mask_nan(mask,5)
     # input_data_filtered[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), input_data_filtered[~mask])
     input_data_filtered[mask] = np.NAN
-    return input_data_filtered
+    quality = np.zeros(len(input_data_filtered))
+    quality[mask] = 100
+    return input_data_filtered, quality
 
 """ gets data from eagle io and if there is new data filters it
 and reuploads it 
 """
 def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode, 
-                SQINode, upper_threshold, lower_threshold, changing_rate, api_key):
+                SQINode, qnode,upper_threshold, lower_threshold, changing_rate, api_key):
     # get input data from node and convert
     # the source and desticnation nodes are not neccesarilty in same eagle zone
     # could make a passable api_key for both, default is p25 key
     ea = eagle(api_key)
-    ea_dest = eagle()
+    ea_dest = eagle(quality_node=qnode)
 
     global FILTER_MIN_WINDOW
 
@@ -328,7 +344,7 @@ def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode,
     ### for testing filtering all
     # dest_metadata['currentTime'] = source_metadata['oldestTime']
     ### for testing when already filtered
-    # dest_metadata['currentTime'] = source_metadata['currentTime'] - timedelta(days=1)
+    dest_metadata['currentTime'] = source_metadata['currentTime'] - timedelta(days=1)
 
     # dest_metadata['currentTime'] = datetime.strptime("2019-05-17T0:0:0.000Z", '%Y-%m-%dT%H:%M:%S.%fZ').replace(microsecond=0)
     # source_metadata['currentTime'] = datetime.strptime("2019-05-31T0:0:0.000Z", '%Y-%m-%dT%H:%M:%S.%fZ').replace(microsecond=0)
@@ -358,22 +374,23 @@ def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode,
             return 0
         
         # run all realtime filters
-        filtered_data = run_filter(input_data, upper_threshold, 
+        filtered_data, quality = run_filter(input_data, upper_threshold, 
                 lower_threshold, changing_rate, start_time, finish_time, 
                 refANode, refBNode, refCNode, refDNode, SQINode, input_dates, api_key)
 
         # Create JTS JSON time series of filtered data  
-        ts = ea.createTimeSeriesJSON(data,filtered_data)
+        ts = ea.createTimeSeriesJSONq(data,filtered_data, quality)
 
         # update destination on Eagle with filtered data
         res = ea_dest.updateData(dest_node, ts)
+        # log.info(ts)
 
         return 1
     log.warning("No new data, no filtering occurred")
     return 0
 
 def main(event, context):
-    log.basicConfig(level=log.WARNING)
+    log.basicConfig(level=log.INFO)
 
     ''' only required for sns '''
     
@@ -388,7 +405,7 @@ def main(event, context):
     lower_threshold = float(event['lower_threshold'])
     changing_rate = float(event['changing_rate'])
     try:
-        api_key = event['api_key']
+        api_key = event['api-key']
     except:
         api_key = ""
 
@@ -402,6 +419,11 @@ def main(event, context):
         refDNode = None
         SQINode = None
     
+    try:
+        qnode = event['qnode']
+    except:
+        qnode = None
+
     if(sensor_type == 'nico'):
         try:
             refANode = event['refANode']
@@ -432,7 +454,7 @@ def main(event, context):
     
     print("Processing ", source_node, dest_node)
     res = filter_data(source_node, dest_node, 
-            refANode, refBNode, refCNode, refDNode, SQINode,
+            refANode, refBNode, refCNode, refDNode, SQINode, qnode,
             upper_threshold, lower_threshold, changing_rate, api_key)
     if(res == 1):
         response = {
@@ -475,17 +497,17 @@ if __name__ == "__main__":
     testEvent = {'Records': [{'EventSource': 'aws:sns', 
                 'EventVersion': '1.0', 'EventSubscriptionArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'Sns': {'Type': 'Notification', 'MessageId': 'bc85683f-2efc-50c6-8314-3d51aff722d2', 'TopicArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate', 
                 'Subject': None, 
-                'Message': '{"source_node": "5b177a5ae4b05e726c7eeeb5", "dest_node": "5ca2a9604c52c40f17064db1", "upper_threshold": "nan", "lower_threshold": "0.001", "changing_rate": "0.5"}', 
+                'Message': '{"qnode": "@qc","source_node": "5b177a5ae4b05e726c7eeeb5", "dest_node": "5ca2a9604c52c40f17064db4", "upper_threshold": "0.4", "lower_threshold": "0.3", "changing_rate": "0.005"}', 
                 'Timestamp': '2019-06-03T01:58:35.515Z', 'SignatureVersion': '1', 'Signature': 'MD2dPjKLTGTijU1s+vPuE699sSM7vquQHQFpVBtqECLEX+4psmZeT7oAMSZY5yCAtS2QKesiE4/lR9ezBENfmmTy/TrWyqguyY+4RO121nzlMWN3FN/IPdbNJU2yvsYby7//PwIJDvgN2KgoAhZPoW92bJtFAxOlMKmnNSsfCPM7lH0FF4M2pyvmzbyauFoFhJfdr0hRWfcPnmmMSusr8rc9Y0wdEtR37qexQ99GR8w2KWMZE8VWPNc8ZdXSeE3sLv7floxaxCIqWcS3nm6pJiN/B0YzDBIJvVEIa492qKm8lPd34MCRG6lLH05VJw3KwkOQLbabpJoP43lKhDZdkQ==', 'SigningCertUrl': 'https://sns.ap-southeast-2.amazonaws.com/SimpleNotificationService-6aad65c2f9911b05cd53efda11f913f9.pem', 'UnsubscribeUrl': 'https://sns.ap-southeast-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'MessageAttributes': {}}}]}
     testEventOPUS = {'Records': [{'EventSource': 'aws:sns', 
                 'EventVersion': '1.0', 'EventSubscriptionArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'Sns': {'Type': 'Notification', 'MessageId': 'bc85683f-2efc-50c6-8314-3d51aff722d2', 'TopicArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate', 
                 'Subject': None, 
-                'Message': '{"sensor": "opus","api_key": "25NB4X5DmSvoiepq2P4alkO2nusfuTwiwaLdi3bP","source_node": "5bf8926ee4b080beda47449e", "dest_node": "5d93f09369bee90ccf3b4e5a", "upper_threshold": "nan", "lower_threshold": "nan", "changing_rate": "2", "abs360Node": "5bf8926fe4b080beda4744b0","abs210Node": "5bf8926fe4b080beda4744b4","SQINode": "5bf89270e4b080beda4744c5"}', 
+                'Message': '{"name": "xylem - bamboo creek - Estuarine-N-NO3","sensor": "opus","api-key": "25NB4X5DmSvoiepq2P4alkO2nusfuTwiwaLdi3bP","source_node":  "5bf8926ee4b080beda47449e",  "dest_node": "5d93f09369bee90ccf3b4e5a", "upper_threshold": "2", "lower_threshold": "0", "changing_rate": "0.5","abs360Node": "5bf8926fe4b080beda4744b0","abs10Node": "5bf8926fe4b080beda4744b4","SQINode": "5bf89270e4b080beda4744c5"}', 
                 'Timestamp': '2019-06-03T01:58:35.515Z', 'SignatureVersion': '1', 'Signature': 'MD2dPjKLTGTijU1s+vPuE699sSM7vquQHQFpVBtqECLEX+4psmZeT7oAMSZY5yCAtS2QKesiE4/lR9ezBENfmmTy/TrWyqguyY+4RO121nzlMWN3FN/IPdbNJU2yvsYby7//PwIJDvgN2KgoAhZPoW92bJtFAxOlMKmnNSsfCPM7lH0FF4M2pyvmzbyauFoFhJfdr0hRWfcPnmmMSusr8rc9Y0wdEtR37qexQ99GR8w2KWMZE8VWPNc8ZdXSeE3sLv7floxaxCIqWcS3nm6pJiN/B0YzDBIJvVEIa492qKm8lPd34MCRG6lLH05VJw3KwkOQLbabpJoP43lKhDZdkQ==', 'SigningCertUrl': 'https://sns.ap-southeast-2.amazonaws.com/SimpleNotificationService-6aad65c2f9911b05cd53efda11f913f9.pem', 'UnsubscribeUrl': 'https://sns.ap-southeast-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'MessageAttributes': {}}}]}
 
     import time
     start = time.clock()
-    main(testEventOPUS, None)
+    main(testEvent, None)
     fin = time.clock()
     print("Time: %f sec" % (fin-start))
 

@@ -1,12 +1,13 @@
 import boto3
 import botocore
-import botocore.vendored.requests as requests
+# import botocore.vendored.requests as requests
 import math
 from botocore.vendored.requests.exceptions import ConnectionError
 import json
 import io
 from datetime import datetime
 import logging 
+import requests
 
 # Set up logger
 log = logging.getLogger()
@@ -28,13 +29,13 @@ class eagleFilter():
 
     # api key set to p25 api for backward compatibility, will be overriden if a new api is passed in
     api_key = 'GBBbwpSHH54zF58e7Xwp25zFUZ8xJ5c3TxHUff1B'
-
+    qnode = ""
 
     # Set up logger
     #log.basicConfig(level=log.WARNING)
 
     # # used for backward compatibility from before api keys were added explicitely
-    def __init__(self, key=None):
+    def __init__(self, key=None, quality_node=None):
         # self.api_key = key
         #or
         # print(key)
@@ -42,6 +43,8 @@ class eagleFilter():
         # print(self.api_key)    
         if(key):
             self.api_key = key
+        if(quality_node):
+            self.qnode = quality_node
 
     # @classmethod
     # def init_api(cls, key) -> 'eagleFilter':
@@ -260,12 +263,40 @@ class eagleFilter():
 
         return data
 
+    #This function creates the json timeseries for upload, including a quality code column
+    def createTimeSeriesJSONq(self, origData,filteredData, quality):
+        data = []
+
+        for i in range(0,len(origData)):
+            #make sure to check for NaN
+            if not math.isnan(filteredData[i] ):
+                #Format in JTS
+                # v = {"ts": origData[i][0]+'Z', "f":{"0":{"v": filteredData[i], "q":quality[i]}}} # add "q": quality[i]
+                
+                v = {"ts": origData[i][0]+'Z', 
+                "f":{
+                    "0":{"v": filteredData[i], "q":quality[i]},
+                    "1":{"v":quality[i]}
+                    }
+                } 
+       
+
+                data.append(v)
+
+    
+        #Construct timeseries for loading
+        ts = {"docType": "jts",
+              "version": "1.0",
+              "data":data}
+        return json.dumps(ts)
+
     #Update Eagle
     def updateData(self,node,data):
         #make sure to use write API key
         headers = {'X-Api-Key': 'lKTpXokuT0Plrin0GakpbSa1fKeftTP5Lk5rZeVo','Content-Type':'application/json'}
         #node = "5ca2a9604c52c40f17064dbsdfsd0"
-        params = {'params': node + '(columnIndex:0)'}
+    
+        params = {'params': node + '(columnIndex:0)'+ "," + self.qnode + '(columnIndex:1)'}
 
         try:
             
@@ -274,6 +305,8 @@ class eagleFilter():
                 log.warning("Data could not be uploaded, put returned with error code %s: %s.", 
                     json.loads(result.text).get('error').get('code'), 
                     json.loads(result.text).get('error').get('message'))
+
+            log.info(result)
          
         except ConnectionError as e:
             # exception is printed not raised so that the function is not repeated for this
@@ -282,7 +315,7 @@ class eagleFilter():
             #raise
 
         return result
-
+    
 
     #Update Eagle
     def updateMetadata(self,node,metadata):
