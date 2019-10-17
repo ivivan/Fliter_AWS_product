@@ -27,6 +27,10 @@ def main(event, context):
         settings['upper_threshold'] = node['upperThreshold']
         settings['lower_threshold'] = node['lowerThreshold']
         settings['changing_rate'] = node['changingRate']
+        try:
+            settings['api-key'] = node['api-key']
+        except:
+            pass
 
         try:
             settings['refANode'] = node['refANode']
@@ -37,6 +41,12 @@ def main(event, context):
         except:
             pass
 
+        try:
+            settings['abs360Node'] = node['abs360Node']
+            settings['abs210Node'] = node['abs210Node']
+            settings['SQINode'] = node['SQINode']
+        except:
+            pass
  
         # invoke lambda using these 
             # just invokin giflterdata is fine
