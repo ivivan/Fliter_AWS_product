@@ -234,8 +234,14 @@ def threshold_filter(input_data, upper_threshold, lower_threshold):
     # interpolate
     # linear interpolation to remove NAN
     mask = np.isnan(input_data_filtered)
-    # mask = mask_nan(mask,5) # change n to change size of uninterpolated consecutive nan
-    input_data_filtered[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), input_data_filtered[~mask])
+    mask = mask_nan(mask,5) # change n to change size of uninterpolated consecutive nan
+    
+    if(np.all(mask)):
+        log.warning("All data points filtered out by the threshold filter")
+    # if(np.flatnonzero(~mask).size==0):
+    #     log.warning("All data points filtered out by the threshold filter")
+    else:
+        input_data_filtered[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), input_data_filtered[~mask])
 
     quality = np.zeros(len(input_data_filtered))
     quality[mask] = 20
@@ -270,7 +276,9 @@ def changing_rate_filter(input_data_filtered,changing_rate):
         # linear interpolation to remove NAN
         mask = np.isnan(data_seocnd) #is necessary because some NAN values not from changing rage mask
         mask = mask_nan(mask,5)
-        data_seocnd[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), data_seocnd[~mask])
+        # If there are still data points to interpolate based on
+        if(not np.all(mask)):
+            data_seocnd[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), data_seocnd[~mask])
         input_data_filtered_seocnd[ranges[i][0]:ranges[i][1]] = data_seocnd    
         m[ranges[i][0]:ranges[i][1]] = mask    
 
@@ -308,8 +316,13 @@ def reference_filter(input_data, refANode, refBNode, refCNode, refDNode,
     # interpolate
     mask = np.isnan(input_data_filtered)
     mask = mask_nan(mask,5)
-    # input_data_filtered[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), input_data_filtered[~mask])
-    input_data_filtered[mask] = np.NAN
+    # print(len(input_data_filtered), input_data_filtered[0:5])
+    # print("HERE", np.flatnonzero(~mask).size, np.all(mask),  np.flatnonzero(~mask).size==0)
+    if(np.all(mask)):
+        log.warning("All data points filtered out by the reference filter")
+    else:
+        input_data_filtered[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), input_data_filtered[~mask])
+    # input_data_filtered[mask] = np.NAN
     quality = np.zeros(len(input_data_filtered))
     quality[mask] = 100
     return input_data_filtered, quality
@@ -344,7 +357,7 @@ def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode,
     ### for testing filtering all
     # dest_metadata['currentTime'] = source_metadata['oldestTime']
     ### for testing when already filtered
-    dest_metadata['currentTime'] = source_metadata['currentTime'] - timedelta(days=1)
+    # dest_metadata['currentTime'] = source_metadata['currentTime'] - timedelta(days=5)
 
     # dest_metadata['currentTime'] = datetime.strptime("2019-05-17T0:0:0.000Z", '%Y-%m-%dT%H:%M:%S.%fZ').replace(microsecond=0)
     # source_metadata['currentTime'] = datetime.strptime("2019-05-31T0:0:0.000Z", '%Y-%m-%dT%H:%M:%S.%fZ').replace(microsecond=0)
@@ -504,10 +517,15 @@ if __name__ == "__main__":
                 'Subject': None, 
                 'Message': '{"name": "xylem - bamboo creek - Estuarine-N-NO3","sensor": "opus","api-key": "25NB4X5DmSvoiepq2P4alkO2nusfuTwiwaLdi3bP","source_node":  "5bf8926ee4b080beda47449e",  "dest_node": "5d93f09369bee90ccf3b4e5a", "upper_threshold": "2", "lower_threshold": "0", "changing_rate": "0.5","abs360Node": "5bf8926fe4b080beda4744b0","abs10Node": "5bf8926fe4b080beda4744b4","SQINode": "5bf89270e4b080beda4744c5"}', 
                 'Timestamp': '2019-06-03T01:58:35.515Z', 'SignatureVersion': '1', 'Signature': 'MD2dPjKLTGTijU1s+vPuE699sSM7vquQHQFpVBtqECLEX+4psmZeT7oAMSZY5yCAtS2QKesiE4/lR9ezBENfmmTy/TrWyqguyY+4RO121nzlMWN3FN/IPdbNJU2yvsYby7//PwIJDvgN2KgoAhZPoW92bJtFAxOlMKmnNSsfCPM7lH0FF4M2pyvmzbyauFoFhJfdr0hRWfcPnmmMSusr8rc9Y0wdEtR37qexQ99GR8w2KWMZE8VWPNc8ZdXSeE3sLv7floxaxCIqWcS3nm6pJiN/B0YzDBIJvVEIa492qKm8lPd34MCRG6lLH05VJw3KwkOQLbabpJoP43lKhDZdkQ==', 'SigningCertUrl': 'https://sns.ap-southeast-2.amazonaws.com/SimpleNotificationService-6aad65c2f9911b05cd53efda11f913f9.pem', 'UnsubscribeUrl': 'https://sns.ap-southeast-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'MessageAttributes': {}}}]}
-
+    testEventTest = {'Records': [{'EventSource': 'aws:sns', 
+                'EventVersion': '1.0', 'EventSubscriptionArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'Sns': {'Type': 'Notification', 'MessageId': 'bc85683f-2efc-50c6-8314-3d51aff722d2', 'TopicArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate', 
+                'Subject': None, 
+                'Message': '{"name": "xylem - bamboo creek - Estuarine-N-NO3","sensor": "nico","refANode": "5c3578fc1bbcf10f7880ca62", "refBNode": "5c3578fc1bbcf10f7880ca63", "refCNode": "5c3578fc1bbcf10f7880ca64", "refDNode": "5c3578fc1bbcf10f7880ca65", "SQINode": "5c3578fc1bbcf10f7880ca61","apikey": "25NB4X5DmSvoiepq2P4alkO2nusfuTwiwaLdi3bP","source_node":  "5c3578fc1bbcf10f7880ca5f",  "dest_node": "5ca2a9604c52c40f17064db7", "upper_threshold": "2", "lower_threshold": "0", "changing_rate": "0.5","abs360Node": "5bf8926fe4b080beda4744b0","abs10Node": "5bf8926fe4b080beda4744b4","SQINode": "5bf89270e4b080beda4744c5",  "refANode": "5c3578fc1bbcf10f7880ca62", "refBNode": "5c3578fc1bbcf10f7880ca63", "refCNode": "5c3578fc1bbcf10f7880ca64", "refDNode": "5c3578fc1bbcf10f7880ca65", "SQINode": "5c3578fc1bbcf10f7880ca61"}', 
+                'Timestamp': '2019-06-03T01:58:35.515Z', 'SignatureVersion': '1', 'Signature': 'MD2dPjKLTGTijU1s+vPuE699sSM7vquQHQFpVBtqECLEX+4psmZeT7oAMSZY5yCAtS2QKesiE4/lR9ezBENfmmTy/TrWyqguyY+4RO121nzlMWN3FN/IPdbNJU2yvsYby7//PwIJDvgN2KgoAhZPoW92bJtFAxOlMKmnNSsfCPM7lH0FF4M2pyvmzbyauFoFhJfdr0hRWfcPnmmMSusr8rc9Y0wdEtR37qexQ99GR8w2KWMZE8VWPNc8ZdXSeE3sLv7floxaxCIqWcS3nm6pJiN/B0YzDBIJvVEIa492qKm8lPd34MCRG6lLH05VJw3KwkOQLbabpJoP43lKhDZdkQ==', 'SigningCertUrl': 'https://sns.ap-southeast-2.amazonaws.com/SimpleNotificationService-6aad65c2f9911b05cd53efda11f913f9.pem', 'UnsubscribeUrl': 'https://sns.ap-southeast-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'MessageAttributes': {}}}]}
+    
     import time
     start = time.clock()
-    main(testEvent, None)
+    main(testEventTest, None)
     fin = time.clock()
     print("Time: %f sec" % (fin-start))
 
