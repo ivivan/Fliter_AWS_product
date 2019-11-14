@@ -6,57 +6,54 @@ import logging as log
 def main(event, context):
     log.basicConfig(level=log.INFO)
       
-    #get all node from S3
+    # Get all node from S3
     ea = eagle()
     try:
         nodes = ea.getFileAWSJSON('digiscapegbr', 'filterSettings', 'filterSettingsReference.json')["nodes"]
     except Exception as e:
         log.error("There was an error in importing the node settings file.")
-        print(e)
-        # this shouldn't cause a retry buck check
-        return 
+        log.error(e)
+        # this shouldn't cause a retry but check
+        return
         
-    #client = boto3.client('lambda', region_name='ap-southeast-2')
     client = boto3.client('sns', region_name='ap-southeast-2')
     for node in nodes:
-        # set perams, src, dst, threshold, rate
-        settings = {}
-        settings['source_node'] = node['source']
-        settings['dest_node'] = node['destination']
-        #convert to nums?
-        settings['upper_threshold'] = node['upperThreshold']
-        settings['lower_threshold'] = node['lowerThreshold']
-        settings['changing_rate'] = node['changingRate']
-        try:
-            settings['api-key'] = node['api-key']
-        except:
-            pass
+        # # set perams, src, dst, threshold, rate
+        # settings = {}
+        # settings['source'] = node['source']
+        # settings['destination'] = node['destination']
+        # settings['upperThreshold'] = node['upperThreshold']
+        # settings['lowerThreshold'] = node['lowerThreshold']
+        # settings['changingRate'] = node['changingRate']
+        # try:
+        #     settings['apiKey'] = node['apiKey']
+        # except:
+        #     pass
 
-        try:
-            settings['refANode'] = node['refANode']
-            settings['refBNode'] = node['refBNode']
-            settings['refCNode'] = node['refCNode']
-            settings['refDNode'] = node['refDNode']
-            settings['SQINode'] = node['SQINode']
-        except:
-            pass
+        # try:
+        #     settings['refANode'] = node['refANode']
+        #     settings['refBNode'] = node['refBNode']
+        #     settings['refCNode'] = node['refCNode']
+        #     settings['refDNode'] = node['refDNode']
+        #     settings['SQINode'] = node['SQINode']
+        # except:
+        #     pass
 
-        try:
-            settings['abs360Node'] = node['abs360Node']
-            settings['abs210Node'] = node['abs210Node']
-            settings['SQINode'] = node['SQINode']
-        except:
-            pass
- 
-        # invoke lambda using these 
-            # just invokin giflterdata is fine
-        
-        message = json.dumps(settings)
-        print(message)
-        
-        #client.invoke(FunctionName='gbrEagleFilterNode', InvocationType='DryRun', Payload=json.dumps(settings))
+        # try:
+        #     settings['abs360Node'] = node['abs360Node']
+        #     settings['abs210Node'] = node['abs210Node']
+        #     settings['SQINode'] = node['SQINode']
+        # except:
+        #     pass
+
+        message = json.dumps(node)
+        log.info(message)
+
+        # Invoke directly using:
+        # client.invoke(FunctionName='gbrEagleFilterNode', InvocationType='DryRun', Payload=json.dumps(settings))
+
         r = client.publish(TopicArn='arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate', Message=message)
-        print(r)
+        log.info("Response: %s", r)
 
 if __name__ == "__main__":
     main(None, None)

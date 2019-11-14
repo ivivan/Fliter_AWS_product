@@ -1,3 +1,7 @@
+"""
+version 3.0
+"""
+
 import boto3
 import botocore
 import botocore.vendored.requests as requests
@@ -40,31 +44,53 @@ class eagleFilter():
     api_key = 'GBBbwpSHH54zF58e7Xwp25zFUZ8xJ5c3TxHUff1B'
     qnode = ""
 
-    # Set up logger
-    #log.basicConfig(level=log.WARNING)
+    # maximum data points to load from eagle
+    # too low to run once on some old streams on when filtering for the first time
+    load_limit = 5000 
 
-    # # used for backward compatibility from before api keys were added explicitely
+    # Set up logger
+    # log.basicConfig(level=log.WARNING)
+
     def __init__(self, key=None, quality_node=None):
-        # self.api_key = key
-        #or
-        # print(key)
-        
-        # print(self.api_key)    
         if(key):
             self.api_key = key
         if(quality_node):
             self.qnode = quality_node
 
-    # @classmethod
-    # def init_api(cls, key) -> 'eagleFilter':
-    #     print(key)
-    #     print(api_key)
-    #     self.api_key = key
-    #     print(self.api_key)
-    #     return cls()
+    def setApiKey(self, key):
+        self.api_key = key
 
-    # A simple call to upload a file to S3 storage
-    def uploadDataAWSJSON(self,bucket_name, directory, filename):
+    def setLoadLimit(self, limit):
+        """ Set the maximum number of data points to request from eagle """
+        self.load_limit = limit
+
+    def uploadDataAWSJSON(self, bucket_name, directory, filename):
+        """ Upload file 'filename' to the S3 directory specified by 'bucket_name'
+            and 'directory'.
+        """
+
+        client = boto3.resource(
+            's3',
+            region_name='ap-southeast-2',
+            aws_access_key_id='AKIAV7HZ4YHAKWC4NAHG',
+            aws_secret_access_key='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',
+        )
+
+        fname = open(filename, 'r')
+        memio = io.BytesIO(fname.read().encode('utf-8'))
+        fname.close()
+
+        # note that the content type needs to be changed depenging on file type
+        client.Bucket(bucket_name).put_object(
+            Key= directory +'/'+filename,
+            Body=memio,
+            ContentType='application/json')
+        memio.close()
+    
+    def uploadDirectAWSJSON(self, bucket_name, directory, filename, data):
+        """ Upload dictionary data to the S3 directory bucket_name/directory
+        under the name filename 
+        """
         client = boto3.resource(
             's3',
             region_name='ap-southeast-2',
@@ -72,17 +98,9 @@ class eagleFilter():
             aws_secret_access_key='cDrq6D//PsrA0QkFBfW2CezUt2LDgRL+lyQApsEa',
 
         )
-
-        fname = open(filename, 'r')
-        memio = io.BytesIO(fname.read().encode('utf-8'))
-        fname.close()
-
-        #note that the content type needs to be changed depenging on file type
-        client.Bucket(bucket_name).put_object(
-            Key= directory +'/'+filename,
-            Body=memio,
-            ContentType='application/json')
-        memio.close()
+        client.Object(bucket_name, directory+ '/' +filename).put(
+             Body=(bytes(json.dumps(data, indent=2).encode('UTF-8')))
+        )
 
     def getFileAWSJSON(self,bucket_name, directory, filename):
         # Start is datetime, interval in hours
@@ -95,7 +113,6 @@ class eagleFilter():
             region_name='ap-southeast-2',
             aws_access_key_id='AKIAV7HZ4YHAKWC4NAHG',
             aws_secret_access_key='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',
-
         )
 
         try:
@@ -125,7 +142,6 @@ class eagleFilter():
                 # Format for data array
                 row = [ts['data'][i]['ts'] + 'Z', ts['data'][i]['f']['0']['v']]
                 data.append(row)
-
 
         return data
 
@@ -157,30 +173,6 @@ class eagleFilter():
             oldestTime = None
             obsInterval = None
 
-        # if jsonData['currentValue'] == None:
-        #     currentTime = datetime(2016,1,1) 
-        #     prevTime = None
-        #     oldestTime = None
-        #     obsInterval = None
-        # if jsonData.get('currentTime') == None and jsonData.get('createdTime') != None:
-        #     print("Assigned date")
-        #     currentTime = 0# datetime.strptime(jsonData['createdTime'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(microsecond=0)
-        #     prevTime = None
-        #     oldestTime = None
-        #     obsInterval = None
-        # else:
-        #     # test
-        #     # jsonData['currentTime'] = '2016-01-01T00:00:00.000Z'
-        #     # jsonData['previousTime'] = '2016-01-01T00:00:00.000Z'
-        #     # jsonData['oldestTime'] = '2016-01-01T00:00:00.000Z'
-            
-            
-        #     currentTime = datetime.strptime(jsonData['currentTime'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(microsecond=0)
-        #     prevTime = datetime.strptime(jsonData['previousTime'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(microsecond=0)
-        #     oldestTime = datetime.strptime(jsonData['oldestTime'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(microsecond=0)
-        #     obsInterval = currentTime - prevTime
-
-
         returnData = { 'oldestTime':oldestTime, 'currentTime':currentTime,
                        'obsInterval': obsInterval, 'previousTime':prevTime}
 
@@ -201,8 +193,8 @@ class eagleFilter():
 
         return currentTime, prevTime
 
-    #Function to return data for node form eagle io
-    def getData( self, node, startTime, endTime):
+    #Function to return data for node from eagle io
+    def getData(self, node, startTime, endTime):
         #using a read API key
         # print(startTime, endTime)
 
@@ -215,9 +207,8 @@ class eagleFilter():
                   'endTime':endTime.strftime('%Y-%m-%dT%H:%M:%SZ'),
                   'timeFormat' : 'YYYY-MM-DDTHH:mm:ss',
                   'timezone' : 'Etc/UTC',
-                  'limit': 5000, # too low to run just once on some old streams on when filtering for the first time
+                  'limit': self.load_limit, 
                   'params':node }
-        # print (params)
         try:
             #could be in a repeat loop
             for i in range(0,3):

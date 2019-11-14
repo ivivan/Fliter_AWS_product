@@ -9,7 +9,7 @@ import logging as log
 from datetime import datetime, timedelta
 from itertools import count, groupby
 
-FILTER_MIN_WINDOW = 10 #days
+FILTER_MIN_WINDOW = 10  # days
 
 """
 Note:
@@ -22,31 +22,41 @@ Note:
     This is for now unaddressed
 """
 
-
-""" Sets values to False if there are more than n consecutive True values
-    This allows for us to interpolate only the NAN values in the data where there 
-        are fewer than n consecutive NANs, only True values in the mask are interpolated """
 # this could likely be more efficient
 def mask_nan(mask, n):
-    i=0
-    while i<(len(mask)-n-1):
-        if((mask[i:i+n]==True).all()):
-            mask[i:i+n]=False
-            i+=(n)
-            while(i<len(mask) and mask[i]==True):
-                mask[i] = False
-                i+=1
-        else:
-            i+=1
+    """ Sets values to False if there are more than n consecutive True values
 
+    This allows for us to interpolate only the NAN values in the data where
+    there are fewer than n consecutive NANs, only True values in the mask
+    are interpolated 
+    """
+    i=0
+    while i < (len(mask)-n-1):
+        # if all of the next n values are true set them to false and move
+        # forward by n
+        if((mask[i:i+n] == True).all()):
+            mask[i:i+n] = False
+            i += (n)
+
+            # check for any further consecutive true values
+            while(i < len(mask) and mask[i] == True):
+                mask[i] = False
+                i += 1
+        else:
+            i += 1
     return mask  
 
-""" Calculate the mask for filtering values from regerence values, 
-    True values in the mask are the data filtered out"""
+
 def find_reference_mask_nico(input_data, input_dates, refA, refB, refC, refD, SQI):
-    refD = np.array(refD) #k
+    """ Calculate the mask for filtering values from reference values for nico
+    sensors.
+
+    True values in the mask are the data filtered out
+    """
+    # seperate the dates and values into two lists for each reference 
+    refD = np.array(refD) #k loop variable
     refD_date = np.array(refD[:,0]).astype('datetime64')
-    refD = refD[:,1].astype(float)
+    refD = refD[:,1].astype(float) # convert from string to float
 
     SQI = np.array(SQI) #j
     SQI_date = np.array(SQI[:,0]).astype('datetime64')
@@ -67,32 +77,46 @@ def find_reference_mask_nico(input_data, input_dates, refA, refB, refC, refD, SQ
     input_dates = np.array(input_dates).astype('datetime64')
     mask = np.full(len(input_dates), False)
 
-    # r = []
+    # Not every data point has a corrosponding reference value so dates must
+    # be checked before comparing.
+    # If a value in any of the streams is nan it is not present in the data at 
+    # all. So we need to make sure the date for the data and the reference value 
+    # match before masking the value. To be able to move around values in each 
+    # array, each reference node has its own loop variable.
     i = j = k = m = n = p = 0
-    while(i<len(input_dates)):
+
+    while(i < len(input_dates)):
+        # reference value D is used in multiple places so even though it may not 
+        # match dates in one case it may in other conditions. This means it 
+        # cannot just be incremented when the dates first don't match and has to
+        # be incremented at the end. kn is how much the loop variable for 
+        # reference D (k) needs to be incremented.
         kn = 0
+
         if(input_dates[i] == SQI_date[j]):
+            # if the dates match apply the appropriate test
             mask[i] =  (SQI[j]<0.5)|(SQI[j]>1)
         elif(input_dates[i] < SQI_date[j]):
+            # if the input date is less than the reference date there is no
+            # reference value for this date, it cannot be filtered out. We also
+            # need to re-check this reference with the next input date 
             mask[i] = False
             j -= 1
         elif(input_dates[i] > SQI_date[j]): 
+            # if the input date is greater than the reference we check the next 
+            # reference
             j+=1
 
         if(input_dates[i] == refD_date[k]):
-            mask[i] |=  refD[k]<13000
+            mask[i] |= refD[k] < 13000
         elif(input_dates[i] < refD_date[k]):
             mask[i] |= False
-            kn += 1
+            kn += 1 # D is a special case
         elif(input_dates[i] > refD_date[k]): 
-            kn-=1
+            kn -= 1
 
         if(input_dates[i] == refA_date[m]):
-            # from matplotlib import pyplot as plt
             mask[i] |=  (refA[m]<150)|(np.abs(refD[m] - refA[m]) > 7000)
-            # plt.plot(np.abs(refD[m] - refA[m]), 'o')
-            # r = r + [np.abs(refD[m] - refA[m])/1000]
-
         elif(input_dates[i] < refA_date[m]):
             mask[i] |= False
             m -= 1
@@ -108,21 +132,24 @@ def find_reference_mask_nico(input_data, input_dates, refA, refB, refC, refD, SQ
         elif(input_dates[i] < refC_date[p]):
             mask[i] |= False
             p -= 1
-        
 
-        i+=1
-        j+=1
-        k=k+1-kn
-        m+=1
-        n+=1
-        p+=1
-    # plt.figure()
-    # plt.plot(r, 'o', markersize = 3)
-
+        i += 1
+        j += 1
+        k = k + 1 - kn
+        m += 1
+        n += 1
+        p += 1
+ 
     return mask
 
 def find_reference_mask_opus(input_data, input_dates, abs360, abs210, SQI):
-    SQI = np.array(SQI) #j
+    """ Calculate the mask for filtering values from reference values for opus
+    sensors.
+
+    True values in the mask are the data filtered out
+    """
+    # seperate the dates and values into two lists for each reference 
+    SQI = np.array(SQI) #j loop variable
     SQI_date = np.array(SQI[:,0]).astype('datetime64')
     SQI = SQI[:,1].astype(float)
 
@@ -140,14 +167,21 @@ def find_reference_mask_opus(input_data, input_dates, abs360, abs210, SQI):
     # not every data point has a corrosponding reference value so dates must
     # be checked before comparing
     i = j = m = n  = 0
-    while(i<len(input_dates)):
+
+    while(i < len(input_dates)):
         if(input_dates[i] == SQI_date[j]):
+            # if the dates match apply the appropriate test
             mask[i] =  (SQI[j]<0.5)|(SQI[j]>1)
         elif(input_dates[i] < SQI_date[j]):
+            # if the input date is less than the reference date there is no
+            # reference value for this date, it cannot be filtered out. We also
+            # need to re-check this reference with the next input date 
             mask[i] = False
             j -= 1
-        elif(input_dates[i] > SQI_date[j]): 
-            j+=1
+        elif(input_dates[i] > SQI_date[j]):
+            # if the input date is greater than the reference we check the next 
+            # reference 
+            j += 1
 
         if(input_dates[i] == abs360_date[m]):
             mask[i] |=  (abs360[m]>=0.8)
@@ -200,19 +234,6 @@ def run_filter(input_data, upper_threshold, lower_threshold, changing_rate,
     input_data_filtered_seocnd, q3 = changing_rate_filter(input_data_filtered,changing_rate)
     # quality = np.array(149+np.zeros(len(input_data_filtered_seocnd)))
     quality += q3 
-    # print(quality)
-    ''' plot 
-    from matplotlib import pyplot as plt
-
-    plt.plot(input_data, 'r.',  markersize=4)
-    plt.plot(input_data_ref, 'r.',  input_data_ref, 'r-', alpha = 0.4, linewidth=0.5, markersize=2)
-    plt.plot(input_data_filtered_seocnd, 'g.', markersize=4)
-    plt.plot(lower_threshold*np.ones(len(input_data_ref)))
-    plt.plot(upper_threshold*np.ones(len(input_data_ref)))
-    plt.show()
-
-    ''' 
-
    
     # may be unneccesary 
     # convert pandas data frame to list
@@ -229,6 +250,9 @@ def threshold_filter(input_data, upper_threshold, lower_threshold):
     if(not np.isnan(upper_threshold)):
         mask|=np.greater_equal(input_data, upper_threshold, where=~np.isnan(input_data))
 
+    quality = np.zeros(len(input_data))
+    quality[mask] = 2
+
     input_data_filtered = input_data.copy()
     input_data_filtered[mask] = np.NAN
     # interpolate
@@ -242,9 +266,6 @@ def threshold_filter(input_data, upper_threshold, lower_threshold):
     #     log.warning("All data points filtered out by the threshold filter")
     else:
         input_data_filtered[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), input_data_filtered[~mask])
-
-    quality = np.zeros(len(input_data_filtered))
-    quality[mask] = 2
 
     return input_data_filtered, quality
 
@@ -264,6 +285,7 @@ def changing_rate_filter(input_data_filtered,changing_rate):
     m = np.zeros(len(input_data_filtered))
     for i in range(0, len(ranges)):
         data = input_data_filtered[ranges[i][0]:ranges[i][1]]
+        # differentiate data to find rate of change
         diff_index = np.diff(data)
 
         mask_diff = np.greater(abs(diff_index), changing_rate, where=~np.isnan(diff_index))
@@ -280,7 +302,7 @@ def changing_rate_filter(input_data_filtered,changing_rate):
         if(not np.all(mask)):
             data_seocnd[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), data_seocnd[~mask])
         input_data_filtered_seocnd[ranges[i][0]:ranges[i][1]] = data_seocnd    
-        m[ranges[i][0]:ranges[i][1]] = mask    
+        m[ranges[i][0]:ranges[i][1]] = mask_diff    
 
     quality = np.zeros(len(input_data_filtered_seocnd)) 
     quality[m.astype(bool)] = 4
@@ -309,6 +331,10 @@ def reference_filter(input_data, refANode, refBNode, refCNode, refDNode,
     if (len(mask) != len(input_data)):
         log.warning("The reference and value streams have different number of data points \n No reference filter applied")
         return input_data
+    
+    quality = np.zeros(len(input_data))
+    quality[mask] = 1
+
     # filter from mask
     input_data_filtered = input_data.copy()
     input_data_filtered[mask] = np.NAN
@@ -316,15 +342,13 @@ def reference_filter(input_data, refANode, refBNode, refCNode, refDNode,
     # interpolate
     mask = np.isnan(input_data_filtered)
     mask = mask_nan(mask,5)
-    # print(len(input_data_filtered), input_data_filtered[0:5])
-    # print("HERE", np.flatnonzero(~mask).size, np.all(mask),  np.flatnonzero(~mask).size==0)
+   
     if(np.all(mask)):
         log.warning("All data points filtered out by the reference filter")
     else:
         input_data_filtered[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), input_data_filtered[~mask])
     # input_data_filtered[mask] = np.NAN
-    quality = np.zeros(len(input_data_filtered))
-    quality[mask] = 1
+    
     return input_data_filtered, quality
 
 """ gets data from eagle io and if there is new data filters it
@@ -418,13 +442,13 @@ def main(event, context):
     
     ''' '''
 
-    source_node = event['source_node']
-    dest_node = event['dest_node']
-    upper_threshold = float(event['upper_threshold'])
-    lower_threshold = float(event['lower_threshold'])
-    changing_rate = float(event['changing_rate'])
+    source_node = event['source']
+    dest_node = event['destination']
+    upper_threshold = float(event['upperThreshold'])
+    lower_threshold = float(event['lowerThreshold'])
+    changing_rate = float(event['changingRate'])
     try:
-        api_key = event['api-key']
+        api_key = event['apiKey']
     except:
         api_key = ""
 
@@ -505,10 +529,10 @@ def test_resample():
 
 def run_on_all():
 
-	f = open("direct_input.json", 'r')
+	f = open("filterSettingsReference.json", 'r')
 	a = json.load(f)
 	nodes = a["nodes"]
-	for i in [0]:
+	for i in [0, 3, 4, 5, 6, 7]:
 		nodei = json.dumps(nodes[i])
 		event = {'Records': [{'EventSource': 'aws:sns', 
 					'EventVersion': '1.0', 'EventSubscriptionArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'Sns': {'Type': 'Notification', 'MessageId': 'bc85683f-2efc-50c6-8314-3d51aff722d2', 'TopicArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate', 
@@ -523,7 +547,7 @@ if __name__ == "__main__":
 	run_on_all()
 # 	run()
 	
-if __name__ == "_q_":
+if __name__ == "d":
 
     # output on column 3
     testEventRef = {'Records': [{'EventSource': 'aws:sns', 
@@ -550,9 +574,10 @@ if __name__ == "_q_":
     testE = {'Records': [{'EventSource': 'aws:sns', 
                 'EventVersion': '1.0', 'EventSubscriptionArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'Sns': {'Type': 'Notification', 'MessageId': 'bc85683f-2efc-50c6-8314-3d51aff722d2', 'TopicArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate', 
                 'Subject': None, 
-                'Message': '{"name": "xylem - bamboo creek - Estuarine-N-NO3", "api-key":"25NB4X5DmSvoiepq2P4alkO2nusfuTwiwaLdi3bP", "source_node":"5bf8927ce4b080beda4745b9", "dest_node":"5ca2a9604c52c40f17064db8", "upper_threshold": "nan", "lower_threshold": "-10", "changing_rate": "nan"}', 
+                'Message': '{"name": "p25 - behana creek - ROM-NO3-N", "refANode": "5c3578fc1bbcf10f7880ca62", "refBNode": "5c3578fc1bbcf10f7880ca63", "refCNode": "5c3578fc1bbcf10f7880ca64", "refDNode": "5c3578fc1bbcf10f7880ca65", "SQINode": "5c3578fc1bbcf10f7880ca61","sensor": "nico", "source":"5c3578fc1bbcf10f7880ca5f", "destination":"5ca2a9604c52c40f17064db7", "upperThreshold": "2", "lowerThreshold": "0", "changingRate": "0.172"}', 
                 'Timestamp': '2019-06-03T01:58:35.515Z', 'SignatureVersion': '1', 'Signature': 'MD2dPjKLTGTijU1s+vPuE699sSM7vquQHQFpVBtqECLEX+4psmZeT7oAMSZY5yCAtS2QKesiE4/lR9ezBENfmmTy/TrWyqguyY+4RO121nzlMWN3FN/IPdbNJU2yvsYby7//PwIJDvgN2KgoAhZPoW92bJtFAxOlMKmnNSsfCPM7lH0FF4M2pyvmzbyauFoFhJfdr0hRWfcPnmmMSusr8rc9Y0wdEtR37qexQ99GR8w2KWMZE8VWPNc8ZdXSeE3sLv7floxaxCIqWcS3nm6pJiN/B0YzDBIJvVEIa492qKm8lPd34MCRG6lLH05VJw3KwkOQLbabpJoP43lKhDZdkQ==', 'SigningCertUrl': 'https://sns.ap-southeast-2.amazonaws.com/SimpleNotificationService-6aad65c2f9911b05cd53efda11f913f9.pem', 'UnsubscribeUrl': 'https://sns.ap-southeast-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'MessageAttributes': {}}}]}
     
+
     import time
     start = time.clock()
     main(testE, None)
