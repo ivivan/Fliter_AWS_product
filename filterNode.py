@@ -244,7 +244,7 @@ def threshold_filter(input_data, upper_threshold, lower_threshold):
         input_data_filtered[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), input_data_filtered[~mask])
 
     quality = np.zeros(len(input_data_filtered))
-    quality[mask] = 20
+    quality[mask] = 2
 
     return input_data_filtered, quality
 
@@ -283,7 +283,7 @@ def changing_rate_filter(input_data_filtered,changing_rate):
         m[ranges[i][0]:ranges[i][1]] = mask    
 
     quality = np.zeros(len(input_data_filtered_seocnd)) 
-    quality[m.astype(bool)] = 3
+    quality[m.astype(bool)] = 4
     return input_data_filtered_seocnd, quality
 
 def reference_filter(input_data, refANode, refBNode, refCNode, refDNode, 
@@ -324,7 +324,7 @@ def reference_filter(input_data, refANode, refBNode, refCNode, refDNode,
         input_data_filtered[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), input_data_filtered[~mask])
     # input_data_filtered[mask] = np.NAN
     quality = np.zeros(len(input_data_filtered))
-    quality[mask] = 100
+    quality[mask] = 1
     return input_data_filtered, quality
 
 """ gets data from eagle io and if there is new data filters it
@@ -342,6 +342,8 @@ def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode,
 
     source_metadata = ea.getLocationMetadata(source_node)
     dest_metadata = ea_dest.getLocationMetadata(dest_node)
+    if(source_metadata == -1 or dest_metadata == -1):
+        return 0
 
     # check if flag for empty stream is set
     if(source_metadata['currentTime'] == 0):
@@ -349,13 +351,15 @@ def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode,
         return 0
 
     # destination node is empty
+    print(dest_metadata)
     if(dest_metadata['currentTime'] == 0):
         # use all of the available data
         log.warning("Empty time fields in destination node, requesting all source data.")
         dest_metadata['currentTime'] = source_metadata['oldestTime']
 
+    
     ### for testing filtering all
-    # dest_metadata['currentTime'] = source_metadata['oldestTime']
+    #dest_metadata['currentTime'] = source_metadata['oldestTime']
     ### for testing when already filtered
     # dest_metadata['currentTime'] = source_metadata['currentTime'] - timedelta(days=5)
 
@@ -372,6 +376,8 @@ def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode,
         # the get in the eagle api is not inclusive so add one second to finish_time 
         # #     so that all the data including the last point is retrieved and the process will not be repeated 
         data = ea.getData(source_node, start_time, finish_time + timedelta(seconds=1)) 
+        if (data == -1):
+            return 0
         # print("Filtering: ", start_time, finish_time, "Length: ", len(data), "Time_dif: ", start_time-finish_time)
         # format data
         input_data = np.asarray(data)[:,1]   
@@ -385,7 +391,7 @@ def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode,
         # all new data is nan so no filtering occurs
         if(np.isnan(input_data).all()):
             return 0
-        
+
         # run all realtime filters
         filtered_data, quality = run_filter(input_data, upper_threshold, 
                 lower_threshold, changing_rate, start_time, finish_time, 
@@ -497,8 +503,27 @@ def test_resample():
     fdata = resample(input_data, input_dates, data)
     print(fdata)
 
+def run_on_all():
 
+	f = open("direct_input.json", 'r')
+	a = json.load(f)
+	nodes = a["nodes"]
+	for i in [0]:
+		nodei = json.dumps(nodes[i])
+		event = {'Records': [{'EventSource': 'aws:sns', 
+					'EventVersion': '1.0', 'EventSubscriptionArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'Sns': {'Type': 'Notification', 'MessageId': 'bc85683f-2efc-50c6-8314-3d51aff722d2', 'TopicArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate', 
+					'Subject': None, 
+					'Message': '%s'%(nodei), 
+					'Timestamp': '2019-06-03T01:58:35.515Z', 'SignatureVersion': '1', 'Signature': 'MD2dPjKLTGTijU1s+vPuE699sSM7vquQHQFpVBtqECLEX+4psmZeT7oAMSZY5yCAtS2QKesiE4/lR9ezBENfmmTy/TrWyqguyY+4RO121nzlMWN3FN/IPdbNJU2yvsYby7//PwIJDvgN2KgoAhZPoW92bJtFAxOlMKmnNSsfCPM7lH0FF4M2pyvmzbyauFoFhJfdr0hRWfcPnmmMSusr8rc9Y0wdEtR37qexQ99GR8w2KWMZE8VWPNc8ZdXSeE3sLv7floxaxCIqWcS3nm6pJiN/B0YzDBIJvVEIa492qKm8lPd34MCRG6lLH05VJw3KwkOQLbabpJoP43lKhDZdkQ==', 'SigningCertUrl': 'https://sns.ap-southeast-2.amazonaws.com/SimpleNotificationService-6aad65c2f9911b05cd53efda11f913f9.pem', 'UnsubscribeUrl': 'https://sns.ap-southeast-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'MessageAttributes': {}}}]}
+		print(i)
+		main(event, None)
+	return
+	
 if __name__ == "__main__":
+	run_on_all()
+# 	run()
+	
+if __name__ == "_q_":
 
     # output on column 3
     testEventRef = {'Records': [{'EventSource': 'aws:sns', 
@@ -522,14 +547,21 @@ if __name__ == "__main__":
                 'Subject': None, 
                 'Message': '{"name": "xylem - bamboo creek - Estuarine-N-NO3","sensor": "nico","refANode": "5c3578fc1bbcf10f7880ca62", "refBNode": "5c3578fc1bbcf10f7880ca63", "refCNode": "5c3578fc1bbcf10f7880ca64", "refDNode": "5c3578fc1bbcf10f7880ca65", "SQINode": "5c3578fc1bbcf10f7880ca61","apikey": "25NB4X5DmSvoiepq2P4alkO2nusfuTwiwaLdi3bP","source_node":  "5c3578fc1bbcf10f7880ca5f",  "dest_node": "5ca2a9604c52c40f17064db7", "upper_threshold": "2", "lower_threshold": "0", "changing_rate": "0.5","abs360Node": "5bf8926fe4b080beda4744b0","abs10Node": "5bf8926fe4b080beda4744b4","SQINode": "5bf89270e4b080beda4744c5",  "refANode": "5c3578fc1bbcf10f7880ca62", "refBNode": "5c3578fc1bbcf10f7880ca63", "refCNode": "5c3578fc1bbcf10f7880ca64", "refDNode": "5c3578fc1bbcf10f7880ca65", "SQINode": "5c3578fc1bbcf10f7880ca61"}', 
                 'Timestamp': '2019-06-03T01:58:35.515Z', 'SignatureVersion': '1', 'Signature': 'MD2dPjKLTGTijU1s+vPuE699sSM7vquQHQFpVBtqECLEX+4psmZeT7oAMSZY5yCAtS2QKesiE4/lR9ezBENfmmTy/TrWyqguyY+4RO121nzlMWN3FN/IPdbNJU2yvsYby7//PwIJDvgN2KgoAhZPoW92bJtFAxOlMKmnNSsfCPM7lH0FF4M2pyvmzbyauFoFhJfdr0hRWfcPnmmMSusr8rc9Y0wdEtR37qexQ99GR8w2KWMZE8VWPNc8ZdXSeE3sLv7floxaxCIqWcS3nm6pJiN/B0YzDBIJvVEIa492qKm8lPd34MCRG6lLH05VJw3KwkOQLbabpJoP43lKhDZdkQ==', 'SigningCertUrl': 'https://sns.ap-southeast-2.amazonaws.com/SimpleNotificationService-6aad65c2f9911b05cd53efda11f913f9.pem', 'UnsubscribeUrl': 'https://sns.ap-southeast-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'MessageAttributes': {}}}]}
+    testE = {'Records': [{'EventSource': 'aws:sns', 
+                'EventVersion': '1.0', 'EventSubscriptionArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'Sns': {'Type': 'Notification', 'MessageId': 'bc85683f-2efc-50c6-8314-3d51aff722d2', 'TopicArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate', 
+                'Subject': None, 
+                'Message': '{"name": "xylem - bamboo creek - Estuarine-N-NO3", "api-key":"25NB4X5DmSvoiepq2P4alkO2nusfuTwiwaLdi3bP", "source_node":"5bf8927ce4b080beda4745b9", "dest_node":"5ca2a9604c52c40f17064db8", "upper_threshold": "nan", "lower_threshold": "-10", "changing_rate": "nan"}', 
+                'Timestamp': '2019-06-03T01:58:35.515Z', 'SignatureVersion': '1', 'Signature': 'MD2dPjKLTGTijU1s+vPuE699sSM7vquQHQFpVBtqECLEX+4psmZeT7oAMSZY5yCAtS2QKesiE4/lR9ezBENfmmTy/TrWyqguyY+4RO121nzlMWN3FN/IPdbNJU2yvsYby7//PwIJDvgN2KgoAhZPoW92bJtFAxOlMKmnNSsfCPM7lH0FF4M2pyvmzbyauFoFhJfdr0hRWfcPnmmMSusr8rc9Y0wdEtR37qexQ99GR8w2KWMZE8VWPNc8ZdXSeE3sLv7floxaxCIqWcS3nm6pJiN/B0YzDBIJvVEIa492qKm8lPd34MCRG6lLH05VJw3KwkOQLbabpJoP43lKhDZdkQ==', 'SigningCertUrl': 'https://sns.ap-southeast-2.amazonaws.com/SimpleNotificationService-6aad65c2f9911b05cd53efda11f913f9.pem', 'UnsubscribeUrl': 'https://sns.ap-southeast-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'MessageAttributes': {}}}]}
     
     import time
     start = time.clock()
-    main(testEventTest, None)
+    main(testE, None)
     fin = time.clock()
     print("Time: %f sec" % (fin-start))
 
     # powershell -Command Measure-Command {python filterNode.py}
     # python -m timeit -n 1 -s "from filterNode import run" "run()"
+
+	
 
 

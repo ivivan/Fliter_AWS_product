@@ -1,19 +1,28 @@
 import boto3
 import botocore
-# import botocore.vendored.requests as requests
+import botocore.vendored.requests as requests
 import math
 from botocore.vendored.requests.exceptions import ConnectionError
 import json
 import io
 from datetime import datetime
 import logging 
-import requests
+# import requests
+""" 
+there is a depreciation warning for the use of botocore requests but as this comes
+in a layer provided by aws it is left to be
+"""
 
 # Set up logger
 log = logging.getLogger()
 log.setLevel(logging.WARNING)
 p25apikey = 'GBBbwpSHH54zF58e7Xwp25zFUZ8xJ5c3TxHUff1B'
 
+"""
+Class that wraps functioanlity for interacting with eagle.io
+Instead of throwing errors this class will output them to the log, so that 
+    repetition in lambda for error conditions is avoided
+"""
 class eagleFilter():
     # Historic eagle io url API
     HISTORIC_API = 'https://api.eagle.io/api/v1/historic'
@@ -128,9 +137,10 @@ class eagleFilter():
 
         jsonData = requests.get(self.data_api+node, headers=headers).json()
         if(jsonData.get('error') != None):
-            raise(Exception("Error %s in loading Eagle stream metadata: %s." % 
+            log.error("Error %s in loading Eagle stream metadata: %s." % 
                         (jsonData['error'].get('code'), 
-                        jsonData['error'].get('message'))))
+                        jsonData['error'].get('message')))
+            return -1
 
         #print("Time %s value %s" %(jsonData.get('currentTime'), jsonData.get('currentValue')))
         # print("###########", jsonData['currentTime'])
@@ -214,13 +224,14 @@ class eagleFilter():
                 hist_values = requests.get(self.HISTORIC_API, headers=headers, params=params).json()
                 if len(hist_values) > 0:
                     if(hist_values.get('error') != None):
-                         raise(Exception("Error %s in loading Eagle historical data: %s." % 
+                        log.error("Error %s in loading Eagle historical data: %s." % 
                                 (hist_values['error'].get('code'), 
-                                hist_values['error'].get('message'))))
+                                hist_values['error'].get('message')))
+                        return -1
                     break
 
         except ConnectionError as e :
-            print (e)
+            log.error(e)
             # need to do something else here
 
         # print(hist_values)
