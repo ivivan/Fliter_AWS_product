@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from itertools import count, groupby
 
 FILTER_MIN_WINDOW = 10  # days
+MAX_GAP = 5
 
 """
 Note:
@@ -93,43 +94,43 @@ def find_reference_mask_nico(input_data, input_dates, refA, refB, refC, refD, SQ
         # reference D (k) needs to be incremented.
         kn = 0
 
-        if(input_dates[i] == SQI_date[j]):
+        if (input_dates[i] == SQI_date[j]):
             # if the dates match apply the appropriate test
             mask[i] =  (SQI[j]<0.5)|(SQI[j]>1)
-        elif(input_dates[i] < SQI_date[j]):
+        elif (input_dates[i] < SQI_date[j]):
             # if the input date is less than the reference date there is no
             # reference value for this date, it cannot be filtered out. We also
             # need to re-check this reference with the next input date 
             mask[i] = False
             j -= 1
-        elif(input_dates[i] > SQI_date[j]): 
+        elif (input_dates[i] > SQI_date[j]): 
             # if the input date is greater than the reference we check the next 
             # reference
             j+=1
 
-        if(input_dates[i] == refD_date[k]):
+        if (input_dates[i] == refD_date[k]):
             mask[i] |= refD[k] < 13000
-        elif(input_dates[i] < refD_date[k]):
+        elif (input_dates[i] < refD_date[k]):
             mask[i] |= False
             kn += 1 # D is a special case
-        elif(input_dates[i] > refD_date[k]): 
+        elif (input_dates[i] > refD_date[k]): 
             kn -= 1
 
-        if(input_dates[i] == refA_date[m]):
+        if (input_dates[i] == refA_date[m]):
             mask[i] |=  (refA[m]<150)|(np.abs(refD[m] - refA[m]) > 7000)
-        elif(input_dates[i] < refA_date[m]):
+        elif (input_dates[i] < refA_date[m]):
             mask[i] |= False
             m -= 1
         
-        if(input_dates[i] == refB_date[n]):
+        if (input_dates[i] == refB_date[n]):
             mask[i] |=  (refB[n]<150)|(np.abs(refD[n] - refB[n]) > 7000)
-        elif(input_dates[i] < refB_date[n]):
+        elif (input_dates[i] < refB_date[n]):
             mask[i] |= False
             n -= 1
 
-        if(input_dates[i] == refC_date[p]):
+        if (input_dates[i] == refC_date[p]):
             mask[i] |=  (refC[p]<150)|(np.abs(refD[p] - refC[p]) > 7000)
-        elif(input_dates[i] < refC_date[p]):
+        elif (input_dates[i] < refC_date[p]):
             mask[i] |= False
             p -= 1
 
@@ -168,127 +169,149 @@ def find_reference_mask_opus(input_data, input_dates, abs360, abs210, SQI):
     # be checked before comparing
     i = j = m = n  = 0
 
-    while(i < len(input_dates)):
-        if(input_dates[i] == SQI_date[j]):
+    while (i < len(input_dates)):
+        if (input_dates[i] == SQI_date[j]):
             # if the dates match apply the appropriate test
             mask[i] =  (SQI[j]<0.5)|(SQI[j]>1)
-        elif(input_dates[i] < SQI_date[j]):
+        elif (input_dates[i] < SQI_date[j]):
             # if the input date is less than the reference date there is no
             # reference value for this date, it cannot be filtered out. We also
             # need to re-check this reference with the next input date 
             mask[i] = False
             j -= 1
-        elif(input_dates[i] > SQI_date[j]):
+        elif (input_dates[i] > SQI_date[j]):
             # if the input date is greater than the reference we check the next 
             # reference 
             j += 1
 
-        if(input_dates[i] == abs360_date[m]):
+        if (input_dates[i] == abs360_date[m]):
             mask[i] |=  (abs360[m]>=0.8)
-        elif(input_dates[i] < abs360_date[m]):
+        elif (input_dates[i] < abs360_date[m]):
             mask[i] |= False
             m -= 1
         
-        if(input_dates[i] == abs210_date[n]):
+        if (input_dates[i] == abs210_date[n]):
             mask[i] |=  (abs210[n]>=3)
-        elif(input_dates[i] < abs210_date[n]):
+        elif (input_dates[i] < abs210_date[n]):
             mask[i] |= False
             n -= 1
 
-        i+=1
-        j+=1
-        m+=1
-        n+=1
+        i += 1
+        j += 1
+        m += 1
+        n += 1
     
     return mask
-        
 
-"""Given node, loads data and runs all filters on it"""
 def run_filter(input_data, upper_threshold, lower_threshold, changing_rate,  
-                start_time, finish_time, 
-                refANode, refBNode, refCNode, refDNode, SQINode, input_dates, api_key):
+                start_time, finish_time, refANode, refBNode, refCNode, refDNode, 
+                SQINode, input_dates, src_read_api_key):
+    """ Runs all filters on input data """
+
+    # quality code 0 to start with
     quality = np.zeros(len(input_data))
 
-    # Run the reference filter if ref is defined
-    if(refANode and refBNode and refCNode and refDNode and SQINode):
-        input_data_ref, q1 = reference_filter(input_data, refANode, refBNode, refCNode, 
-                        refDNode, SQINode, start_time, finish_time, input_dates,api_key)
-        quality += q1
-    elif(refANode and refBNode and SQINode):
-        input_data_ref, q1 = reference_filter(input_data, refANode, refBNode, refCNode, 
-                        refDNode, SQINode, start_time, finish_time, input_dates, api_key)
+    # Run the reference filter if nodes are defined
+    if(refANode and refBNode and SQINode):
+        reference_filtered_data, q1 = reference_filter(input_data, refANode, 
+                        refBNode, refCNode, refDNode, SQINode, start_time, 
+                        finish_time, input_dates, src_read_api_key)
         quality += q1
     else:
-        input_data_ref = input_data.copy()
+        # the next function still expects reference_filtered_data to be defined
+        reference_filtered_data = input_data.copy()
+
 
     # Directly from lambda_function.py
-    if(not (np.isnan(upper_threshold) and np.isnan(lower_threshold))):
-        input_data_filtered, q2 = threshold_filter(input_data_ref, upper_threshold, lower_threshold)
+    if (not (np.isnan(upper_threshold) and np.isnan(lower_threshold))):
+        threshold_filtered_data, q2 = threshold_filter(reference_filtered_data, 
+                                    upper_threshold, lower_threshold)
         quality += q2
     else:
-        # filter is not run if neither threshold is set
-        input_data_filtered = input_data_ref.copy()
-        log.info("No threshold filter")
+        # Filter is not run if neither threshold is set
+        threshold_filtered_data = reference_filtered_data.copy()
+        log.info("No threshold filter was run")
     
 
-    input_data_filtered_seocnd, q3 = changing_rate_filter(input_data_filtered,changing_rate)
-    # quality = np.array(149+np.zeros(len(input_data_filtered_seocnd)))
+    rate_filtered_data, q3 = changing_rate_filter(threshold_filtered_data,
+                                        changing_rate)
     quality += q3 
    
-    # may be unneccesary 
-    # convert pandas data frame to list
-    f = input_data_filtered_seocnd.tolist()
-    return f, quality
+    return rate_filtered_data, quality
 
 def threshold_filter(input_data, upper_threshold, lower_threshold):
-    # apply threshold filter
-    # filtered data is replaced by NAN
-
+    """ Filter values above or below critical values 
+    Filtered data is replaced by NAN
+    """
+    
+    # Create an array of false values the same length as input_data
     mask = np.ones(len(input_data)) !=  np.ones(len(input_data))
-    if(not np.isnan(lower_threshold)):
+    
+    if (not np.isnan(lower_threshold)):
+        # compare only where there is a value
         mask |= np.less_equal(input_data, lower_threshold, where=~np.isnan(input_data))
-    if(not np.isnan(upper_threshold)):
+    if (not np.isnan(upper_threshold)):
         mask|=np.greater_equal(input_data, upper_threshold, where=~np.isnan(input_data))
 
+    # apply quality code with mask of what is filtered by threshold
     quality = np.zeros(len(input_data))
     quality[mask] = 2
 
+    # filter data
     input_data_filtered = input_data.copy()
     input_data_filtered[mask] = np.NAN
-    # interpolate
-    # linear interpolation to remove NAN
+
+    # There may be values that are already NAN or were filtered but not 
+    # interpolated by another function so to include these in the n sized gap
+    # first re-write the mask as all the values that are nan
     mask = np.isnan(input_data_filtered)
-    mask = mask_nan(mask,5) # change n to change size of uninterpolated consecutive nan
+    # gaps of greater than n = 5 are not interpolated, so they are taken out
+    # of the mask
+
+    global MAX_GAP
+    mask = mask_nan(mask,MAX_GAP) # change n to change size of uninterpolated consecutive nan
     
-    if(np.all(mask)):
+    if (np.all(mask)):
         log.warning("All data points filtered out by the threshold filter")
     # if(np.flatnonzero(~mask).size==0):
     #     log.warning("All data points filtered out by the threshold filter")
     else:
+        # linear interpolation to remove NAN
         input_data_filtered[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), input_data_filtered[~mask])
 
     return input_data_filtered, quality
 
 def changing_rate_filter(input_data_filtered,changing_rate):
-    # Changing rate filter - spliced
-    # filtered data is replaced by NAN
+    """ Filter data points with large rates of change
+    Filtered data is replaced by NAN
+
+    Since there may be gaps in the data and changing rate does not make sense
+    across gaps, this is done in sections spliced by gaps.
+    """
 
     # find intervals of non-nan data
     indecies = np.asarray(np.argwhere(~np.isnan(input_data_filtered)))[:,0]
     ranges = [] # will be an array of start and end index for non nan blocks
+    # when the difference between indecies is different break into a new group
     for v,g in groupby(indecies, lambda n, c=count(): n-next(c)):
         k = list(g)
+        # save the start and end index for the interval
         ranges.append([k[0], k[-1]+1])
 
     input_data_filtered_seocnd = input_data_filtered.copy()
     # calculate the changing rate filter for each range seperately
-    m = np.zeros(len(input_data_filtered))
+
+    # mask for all of the data
+    total_mask = np.zeros(len(input_data_filtered))
     for i in range(0, len(ranges)):
         data = input_data_filtered[ranges[i][0]:ranges[i][1]]
+
         # differentiate data to find rate of change
         diff_index = np.diff(data)
 
         mask_diff = np.greater(abs(diff_index), changing_rate, where=~np.isnan(diff_index))
+        # this is required for the mask to be inrterpreted as boolean when 
+        # it's applied 
         mask_diff = np.insert(mask_diff, 0, False)
 
         data_seocnd = data.copy()
@@ -297,24 +320,34 @@ def changing_rate_filter(input_data_filtered,changing_rate):
         # interpolate
         # linear interpolation to remove NAN
         mask = np.isnan(data_seocnd) #is necessary because some NAN values not from changing rage mask
-        mask = mask_nan(mask,5)
+        global MAX_GAP
+        mask = mask_nan(mask,MAX_GAP)
         # If there are still data points to interpolate based on
         if(not np.all(mask)):
             data_seocnd[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), data_seocnd[~mask])
+
         input_data_filtered_seocnd[ranges[i][0]:ranges[i][1]] = data_seocnd    
-        m[ranges[i][0]:ranges[i][1]] = mask_diff    
+        total_mask[ranges[i][0]:ranges[i][1]] = mask_diff    
 
     quality = np.zeros(len(input_data_filtered_seocnd)) 
-    quality[m.astype(bool)] = 4
+    quality[total_mask.astype(bool)] = 4
+
     return input_data_filtered_seocnd, quality
 
 def reference_filter(input_data, refANode, refBNode, refCNode, refDNode, 
-                    SQINode, start_time, finish_time, input_dates, api_key):
-    ea = eagle(api_key) # new instance but could pass around
-
-    refA= ea.getData(refANode, start_time, finish_time + timedelta(seconds=1))
+                    SQINode, start_time, finish_time, input_dates, src_read_api_key):
+    """ Filter data points based on reference values of sensor
+    
+    Data will be loaded from nodes. If refCNode and refDNode are none, the 
+    sensor is an opus sensor and the nodes are interpreted as:
+        refANode: abs360Node
+        refBNode: abs210Node
+    """
+    ea = eagle(src_read_api_key) # new instance but could pass around
+    
+    refA = ea.getData(refANode, start_time, finish_time + timedelta(seconds=1))
     refB = ea.getData(refBNode, start_time, finish_time + timedelta(seconds=1))
-    if(refCNode and refDNode):
+    if (refCNode and refDNode):
         refC = ea.getData(refCNode, start_time, finish_time + timedelta(seconds=1))
         refD = ea.getData(refDNode, start_time, finish_time + timedelta(seconds=1))
     else:
@@ -322,11 +355,10 @@ def reference_filter(input_data, refANode, refBNode, refCNode, refDNode,
         refD = None
     SQI = ea.getData(SQINode, start_time, finish_time + timedelta(seconds=1))
     
-    if(refC and refD):
+    if (refC and refD):
         mask = find_reference_mask_nico(input_data, input_dates, refA, refB, refC, refD, SQI)
     else:
         mask = find_reference_mask_opus(input_data, input_dates, refA, refB, SQI)
-
 
     if (len(mask) != len(input_data)):
         log.warning("The reference and value streams have different number of data points \n No reference filter applied")
@@ -341,30 +373,36 @@ def reference_filter(input_data, refANode, refBNode, refCNode, refDNode,
     
     # interpolate
     mask = np.isnan(input_data_filtered)
-    mask = mask_nan(mask,5)
+    global MAX_GAP
+    mask = mask_nan(mask, MAX_GAP)
    
     if(np.all(mask)):
         log.warning("All data points filtered out by the reference filter")
     else:
         input_data_filtered[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), input_data_filtered[~mask])
-    # input_data_filtered[mask] = np.NAN
     
     return input_data_filtered, quality
 
-""" gets data from eagle io and if there is new data filters it
-and reuploads it 
-"""
+
 def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode, 
-                SQINode, qnode,upper_threshold, lower_threshold, changing_rate, api_key):
-    # get input data from node and convert
-    # the source and desticnation nodes are not neccesarilty in same eagle zone
-    # could make a passable api_key for both, default is p25 key
-    ea = eagle(api_key)
-    ea_dest = eagle(quality_node=qnode)
+                SQINode, qnode, upper_threshold, lower_threshold, changing_rate, 
+                src_read_api_key, src_write_api_key, dest_read_api_key, dest_write_api_key):
+    """ 
+    gets data from eagle io and if there is new data filters it
+        and reuploads it.
+
+    If the src_read/write_api_key is defined it is used as the key for the 
+    source node, api_read/write_key for the destination. For any not set, 
+    the default is the p25 key (see eagleFilter.py).
+    If qnode is defined the quality code is also uploaded to that node 
+    """
+
+    ea_src = eagle(read_key=src_read_api_key, write_key=src_write_api_key)
+    ea_dest = eagle(quality_node=qnode, read_key=dest_read_api_key, write_key=dest_write_api_key)
 
     global FILTER_MIN_WINDOW
 
-    source_metadata = ea.getLocationMetadata(source_node)
+    source_metadata = ea_src.getLocationMetadata(source_node)
     dest_metadata = ea_dest.getLocationMetadata(dest_node)
     if(source_metadata == -1 or dest_metadata == -1):
         return 0
@@ -375,40 +413,34 @@ def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode,
         return 0
 
     # destination node is empty
-    print(dest_metadata)
     if(dest_metadata['currentTime'] == 0):
         # use all of the available data
         log.warning("Empty time fields in destination node, requesting all source data.")
         dest_metadata['currentTime'] = source_metadata['oldestTime']
-
     
     ### for testing filtering all
     #dest_metadata['currentTime'] = source_metadata['oldestTime']
     ### for testing when already filtered
-    # dest_metadata['currentTime'] = source_metadata['currentTime'] - timedelta(days=5)
-
-    # dest_metadata['currentTime'] = datetime.strptime("2019-05-17T0:0:0.000Z", '%Y-%m-%dT%H:%M:%S.%fZ').replace(microsecond=0)
-    # source_metadata['currentTime'] = datetime.strptime("2019-05-31T0:0:0.000Z", '%Y-%m-%dT%H:%M:%S.%fZ').replace(microsecond=0)
+    dest_metadata['currentTime'] = source_metadata['currentTime'] - timedelta(days=5)
 
     # check that there is new data
-    # print(dest_metadata['currentTime'], source_metadata['currentTime'], dest_metadata['currentTime'] < source_metadata['currentTime'])
     if dest_metadata['currentTime'] < source_metadata['currentTime']:
         # get all new data plus a delay window
         start_time =  dest_metadata['currentTime'] - timedelta(days=FILTER_MIN_WINDOW)
         finish_time = source_metadata['currentTime']
        
-        # the get in the eagle api is not inclusive so add one second to finish_time 
-        # #     so that all the data including the last point is retrieved and the process will not be repeated 
-        data = ea.getData(source_node, start_time, finish_time + timedelta(seconds=1)) 
+        # the get in the eagle api is not inclusive so add one second to 
+        # finish_time so that all the data including the last point is retrieved 
+        # and the process will not be repeated 
+        data = ea_src.getData(source_node, start_time, finish_time + timedelta(seconds=1)) 
         if (data == -1):
             return 0
-        # print("Filtering: ", start_time, finish_time, "Length: ", len(data), "Time_dif: ", start_time-finish_time)
+      
         # format data
         input_data = np.asarray(data)[:,1]   
-        
         input_data = input_data.astype(float)
+
         input_dates = np.asarray(data)[:,0]  
-        
         start_time = datetime.strptime(input_dates[0], '%Y-%m-%dT%H:%M:%S')
         finish_time = datetime.strptime(input_dates[-1], '%Y-%m-%dT%H:%M:%S')
         
@@ -419,16 +451,17 @@ def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode,
         # run all realtime filters
         filtered_data, quality = run_filter(input_data, upper_threshold, 
                 lower_threshold, changing_rate, start_time, finish_time, 
-                refANode, refBNode, refCNode, refDNode, SQINode, input_dates, api_key)
+                refANode, refBNode, refCNode, refDNode, SQINode, input_dates, 
+                src_read_api_key)
 
         # Create JTS JSON time series of filtered data  
-        ts = ea.createTimeSeriesJSONq(data,filtered_data, quality)
+        ts = ea_src.createTimeSeriesQualityJSON(data,filtered_data, quality)
 
         # update destination on Eagle with filtered data
-        res = ea_dest.updateData(dest_node, ts)
-        # log.info(ts)
+        # res = ea_dest.updateData(dest_node, ts)
 
         return 1
+
     log.warning("No new data, no filtering occurred")
     return 0
 
@@ -447,10 +480,26 @@ def main(event, context):
     upper_threshold = float(event['upperThreshold'])
     lower_threshold = float(event['lowerThreshold'])
     changing_rate = float(event['changingRate'])
+
     try:
-        api_key = event['apiKey']
+        src_read_api_key = event['sourceReadApiKey']
     except:
-        api_key = ""
+        src_read_api_key = ""
+
+    try:
+        src_write_api_key = event['sourceWriteApiKey']
+    except:
+        src_write_api_key = ""
+
+    try:
+        dest_read_api_key = event['destReadApiKey']
+    except:
+        dest_read_api_key = ""
+
+    try:
+        dest_write_api_key = event['destWriteApiKey']
+    except:
+        dest_write_api_key = ""
 
     try:
         sensor_type = event['sensor']
@@ -494,11 +543,12 @@ def main(event, context):
             refDNode = None
             SQINode = None
 
-    
-    print("Processing ", source_node, dest_node)
+    # may need to stay print
+    log.info("Processing %s %s " % (source_node, dest_node))
     res = filter_data(source_node, dest_node, 
             refANode, refBNode, refCNode, refDNode, SQINode, qnode,
-            upper_threshold, lower_threshold, changing_rate, api_key)
+            upper_threshold, lower_threshold, changing_rate, src_read_api_key, 
+            src_write_api_key, dest_read_api_key, dest_write_api_key)
     if(res == 1):
         response = {
                 "statusCode": 200,
@@ -509,43 +559,23 @@ def main(event, context):
 
 ######
 
-def run():
-    testEvent = {'Records': [{'EventSource': 'aws:sns', 
-            'EventVersion': '1.0', 'EventSubscriptionArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'Sns': {'Type': 'Notification', 'MessageId': 'bc85683f-2efc-50c6-8314-3d51aff722d2', 'TopicArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate', 
-            'Subject': None, 
-            'Message': '{"interval": "60", source_node": "5c3578fc1bbcf10f7880ca5f", "dest_node": "5ca2a9604c52c40f17064db0", "refANode": "5c3578fc1bbcf10f7880ca62", "refBNode": "5c3578fc1bbcf10f7880ca63", "refCNode": "5c3578fc1bbcf10f7880ca64", "refDNode": "5c3578fc1bbcf10f7880ca65", "SQINode": "5c3578fc1bbcf10f7880ca61", "upper_threshold": "1", "lower_threshold": "0", "changing_rate": "0.05"}', 
-            'Timestamp': '2019-06-03T01:58:35.515Z', 'SignatureVersion': '1', 'Signature': 'MD2dPjKLTGTijU1s+vPuE699sSM7vquQHQFpVBtqECLEX+4psmZeT7oAMSZY5yCAtS2QKesiE4/lR9ezBENfmmTy/TrWyqguyY+4RO121nzlMWN3FN/IPdbNJU2yvsYby7//PwIJDvgN2KgoAhZPoW92bJtFAxOlMKmnNSsfCPM7lH0FF4M2pyvmzbyauFoFhJfdr0hRWfcPnmmMSusr8rc9Y0wdEtR37qexQ99GR8w2KWMZE8VWPNc8ZdXSeE3sLv7floxaxCIqWcS3nm6pJiN/B0YzDBIJvVEIa492qKm8lPd34MCRG6lLH05VJw3KwkOQLbabpJoP43lKhDZdkQ==', 'SigningCertUrl': 'https://sns.ap-southeast-2.amazonaws.com/SimpleNotificationService-6aad65c2f9911b05cd53efda11f913f9.pem', 'UnsubscribeUrl': 'https://sns.ap-southeast-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'MessageAttributes': {}}}]}
-                
-    main(testEvent, None)
-    f = open("output.txt", 'a')
-    f.write("Ran")
-
-def test_resample():
-    input_data = []
-    input_dates = ['2019-05-01 00:00:00', '2019-05-01 01:00:00', '2019-05-01 02:00:00', '2019-05-01 03:00:00']
-    data =  [['2019-05-01 00:00:00',1], ['2019-05-01 02:00:00', 3], ['2019-05-01 03:00:00', 4]]
-    fdata = resample(input_data, input_dates, data)
-    print(fdata)
-
 def run_on_all():
-
 	f = open("filterSettingsReference.json", 'r')
 	a = json.load(f)
 	nodes = a["nodes"]
-	for i in [0, 3, 4, 5, 6, 7]:
+	for i in [2, 3]:
 		nodei = json.dumps(nodes[i])
 		event = {'Records': [{'EventSource': 'aws:sns', 
 					'EventVersion': '1.0', 'EventSubscriptionArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'Sns': {'Type': 'Notification', 'MessageId': 'bc85683f-2efc-50c6-8314-3d51aff722d2', 'TopicArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate', 
 					'Subject': None, 
 					'Message': '%s'%(nodei), 
 					'Timestamp': '2019-06-03T01:58:35.515Z', 'SignatureVersion': '1', 'Signature': 'MD2dPjKLTGTijU1s+vPuE699sSM7vquQHQFpVBtqECLEX+4psmZeT7oAMSZY5yCAtS2QKesiE4/lR9ezBENfmmTy/TrWyqguyY+4RO121nzlMWN3FN/IPdbNJU2yvsYby7//PwIJDvgN2KgoAhZPoW92bJtFAxOlMKmnNSsfCPM7lH0FF4M2pyvmzbyauFoFhJfdr0hRWfcPnmmMSusr8rc9Y0wdEtR37qexQ99GR8w2KWMZE8VWPNc8ZdXSeE3sLv7floxaxCIqWcS3nm6pJiN/B0YzDBIJvVEIa492qKm8lPd34MCRG6lLH05VJw3KwkOQLbabpJoP43lKhDZdkQ==', 'SigningCertUrl': 'https://sns.ap-southeast-2.amazonaws.com/SimpleNotificationService-6aad65c2f9911b05cd53efda11f913f9.pem', 'UnsubscribeUrl': 'https://sns.ap-southeast-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'MessageAttributes': {}}}]}
-		print(i)
+		# print(i)
 		main(event, None)
 	return
 	
 if __name__ == "__main__":
 	run_on_all()
-# 	run()
 	
 if __name__ == "d":
 
@@ -574,18 +604,11 @@ if __name__ == "d":
     testE = {'Records': [{'EventSource': 'aws:sns', 
                 'EventVersion': '1.0', 'EventSubscriptionArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'Sns': {'Type': 'Notification', 'MessageId': 'bc85683f-2efc-50c6-8314-3d51aff722d2', 'TopicArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate', 
                 'Subject': None, 
-                'Message': '{"name": "p25 - behana creek - ROM-NO3-N", "refANode": "5c3578fc1bbcf10f7880ca62", "refBNode": "5c3578fc1bbcf10f7880ca63", "refCNode": "5c3578fc1bbcf10f7880ca64", "refDNode": "5c3578fc1bbcf10f7880ca65", "SQINode": "5c3578fc1bbcf10f7880ca61","sensor": "nico", "source":"5c3578fc1bbcf10f7880ca5f", "destination":"5ca2a9604c52c40f17064db7", "upperThreshold": "2", "lowerThreshold": "0", "changingRate": "0.172"}', 
+                'Message': '{"name": "p25 - behana creek - ROM-NO3-N", "refANode": "5c3578fc1bbcf10f7880ca62", "refBNode": "5c3578fc1bbcf10f7880ca63", "refCNode": "5c3578fc1bbcf10f7880ca64", "refDNode": "5c3578fc1bbcf10f7880ca65", "SQINode": "5c3578fc1bbcf10f7880ca61","sensor": "nico", "source":"5c3578fc1bbcf10f7880ca5f", "destination":"5ca2a9604c52c40f17064db7", "upperThreshold": "2", "lowerThreshold": "0", "changingRate": "0.05"}', 
                 'Timestamp': '2019-06-03T01:58:35.515Z', 'SignatureVersion': '1', 'Signature': 'MD2dPjKLTGTijU1s+vPuE699sSM7vquQHQFpVBtqECLEX+4psmZeT7oAMSZY5yCAtS2QKesiE4/lR9ezBENfmmTy/TrWyqguyY+4RO121nzlMWN3FN/IPdbNJU2yvsYby7//PwIJDvgN2KgoAhZPoW92bJtFAxOlMKmnNSsfCPM7lH0FF4M2pyvmzbyauFoFhJfdr0hRWfcPnmmMSusr8rc9Y0wdEtR37qexQ99GR8w2KWMZE8VWPNc8ZdXSeE3sLv7floxaxCIqWcS3nm6pJiN/B0YzDBIJvVEIa492qKm8lPd34MCRG6lLH05VJw3KwkOQLbabpJoP43lKhDZdkQ==', 'SigningCertUrl': 'https://sns.ap-southeast-2.amazonaws.com/SimpleNotificationService-6aad65c2f9911b05cd53efda11f913f9.pem', 'UnsubscribeUrl': 'https://sns.ap-southeast-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'MessageAttributes': {}}}]}
     
-
-    import time
-    start = time.clock()
     main(testE, None)
-    fin = time.clock()
-    print("Time: %f sec" % (fin-start))
 
-    # powershell -Command Measure-Command {python filterNode.py}
-    # python -m timeit -n 1 -s "from filterNode import run" "run()"
 
 	
 
