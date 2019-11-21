@@ -560,7 +560,7 @@ def main(event, context):
 ######
 
 def run_on_all():
-	f = open("filterSettingsReference.json", 'r')
+	f = open("filterSettings.json", 'r')
 	a = json.load(f)
 	nodes = a["nodes"]
 	for i in [2, 3]:

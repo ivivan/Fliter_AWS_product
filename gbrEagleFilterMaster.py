@@ -9,7 +9,7 @@ def main(event, context):
     # Get all node from S3
     ea = eagle()
     try:
-        nodes = ea.getFileAWSJSON('digiscapegbr', 'filterSettings', 'filterSettingsReference.json')["nodes"]
+        nodes = ea.getFileAWSJSON('digiscapegbr', 'filterSettings', 'filterSettings.json')["nodes"]
     except Exception as e:
         log.error("There was an error in importing the node settings file.")
         log.error(e)
@@ -18,34 +18,6 @@ def main(event, context):
         
     client = boto3.client('sns', region_name='ap-southeast-2')
     for node in nodes:
-        # # set perams, src, dst, threshold, rate
-        # settings = {}
-        # settings['source'] = node['source']
-        # settings['destination'] = node['destination']
-        # settings['upperThreshold'] = node['upperThreshold']
-        # settings['lowerThreshold'] = node['lowerThreshold']
-        # settings['changingRate'] = node['changingRate']
-        # try:
-        #     settings['apiKey'] = node['apiKey']
-        # except:
-        #     pass
-
-        # try:
-        #     settings['refANode'] = node['refANode']
-        #     settings['refBNode'] = node['refBNode']
-        #     settings['refCNode'] = node['refCNode']
-        #     settings['refDNode'] = node['refDNode']
-        #     settings['SQINode'] = node['SQINode']
-        # except:
-        #     pass
-
-        # try:
-        #     settings['abs360Node'] = node['abs360Node']
-        #     settings['abs210Node'] = node['abs210Node']
-        #     settings['SQINode'] = node['SQINode']
-        # except:
-        #     pass
-
         message = json.dumps(node)
         log.info(message)
 
