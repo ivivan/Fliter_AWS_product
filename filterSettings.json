@@ -1,13 +1,314 @@
 {
+    "_" : "thresholds may be a value or nan",
+    "__" : "changing rate set based on lowest precision of sensor for all path lengths",
+    "___" : "sensor type only required when references are used",
+    "____" : "qnode for node to save quality code to is optional",
+    "_____" : "external nodes require an api Key",
     "nodes":[
         {
-            "source":  "5b177a5de4b05e726c7eeecc",  
-            "destination": "5ca2a9604c52c40f17064daf", 
+            "name": "p25 - behana creek - streamLevel",
+            "source":  "5b177a5ae4b05e726c7eeeb5",  
+            "destination": "5ca2a9604c52c40f17064db1", 
+            "upperThreshold": "nan", 
+            "lowerThreshold": "0", 
+            "changingRate": "2"
+        },
+        {
+            "name": "p25 - behana creek - ROM-NO3-N",
+            "source":  "5c3578fc1bbcf10f7880ca5f",  
+            "destination": "5ca2a9604c52c40f17064db3", 
+            "upperThreshold": "2", 
+            "lowerThreshold": "0", 
+            "changingRate": "0.5",
+            "sensor": "nico",
+            "refANode": "5c3578fc1bbcf10f7880ca62",
+            "refBNode": "5c3578fc1bbcf10f7880ca63",
+            "refCNode": "5c3578fc1bbcf10f7880ca64",
+            "refDNode": "5c3578fc1bbcf10f7880ca65",
+            "SQINode": "5c3578fc1bbcf10f7880ca61"
+        },
+        {
+            "name": "p25 - behana creek - streamTemperature",
+            "source":  "5b177a5ae4b05e726c7eeeb8",  
+            "destReadApiKey": "GBBbwpSHH54zF58e7Xwp25zFUZ8xJ5c3TxHUff1B",
+            "destWriteApiKey": "lKTpXokuT0Plrin0GakpbSa1fKeftTP5Lk5rZeVo",
+            "destination": "5ca2a9604c52c40f17064db2", 
+            "upperThreshold": "nan", 
+            "lowerThreshold": "14", 
+            "changingRate": "2"
+
+        },
+        {
+            "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
+            "name": "QG - Johnstone River at Coquette Point - NO3",
+            "source":  "5b7de880463f260f62cea602",  
+            "destination": "5dbbb60e64f1060c975255e8", 
             "upperThreshold": "2", 
             "lowerThreshold": "0", 
             "changingRate": "0.5"
+        },
+        {
+            "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
+            "name": "QG - Johnstone River at Innisfail - Water Level",
+            "source":  "591381938782c4a40cc34b9b",  
+            "destination": "5dbbb60e64f1060c975255eb", 
+            "upperThreshold": "nan", 
+            "lowerThreshold": "0", 
+            "changingRate": "2"
+
+        },
+        {
+            "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
+            "name": "QG - Mulgrave River at Deeral - NO3",
+            "source":  "5b7f3c69eac9650f01ce09f7",  
+            "destination": "5dbbb60e64f1060c975255ee", 
+            "upperThreshold": "2", 
+            "lowerThreshold": "0", 
+            "changingRate": "0.5"
+        },
+        {
+            "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
+            "name": "QG - Mulgrave River at Deeral - Water Level",
+            "source":  "5848d5da527032fe0c6a94b4",  
+            "destination": "5dbbb60e64f1060c975255f1", 
+            "upperThreshold": "nan", 
+            "lowerThreshold": "0", 
+            "changingRate": "2"
+
+        },
+        {
+            "name": "QG - Pioneer at Dumbleton - NO3",
+            "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
+            "source":  "5940d2673d2f49af6473c7be",  
+            "destination": "5dbbb60e64f1060c975255f4", 
+            "upperThreshold": "2", 
+            "lowerThreshold": "0", 
+            "changingRate": "0.5"
+        },
+        {
+            "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
+            "name": "QG - Pioneer at Dumbleton - Water Level",
+            "source":  "59e6a1f8c61b240c9999fcf6",  
+            "destination": "5dbbb60e64f1060c975255f7", 
+            "upperThreshold": "nan", 
+            "lowerThreshold": "0", 
+            "changingRate": "2"
+
+        },
+        {
+            "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
+            "name": "QG - Plane Ck at Sucrogen - NO3",
+            "source":  "5bac7f72586d090f956f4755",  
+            "destination": "5dbbb60e64f1060c975255fa", 
+            "upperThreshold": "2", 
+            "lowerThreshold": "0", 
+            "changingRate": "0.5"
+        },
+        {
+            "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
+            "name": "QG - Plane Ck at Sucrogen - Water Level",
+            "source":  "59e6a1f8c61b240c9999fcf6",  
+            "destination": "5dbbb60e64f1060c975255fd", 
+            "upperThreshold": "nan", 
+            "lowerThreshold": "0", 
+            "changingRate": "2"
+
+        },
+        {
+            "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
+            "name": "QG - Proserpine River at Glen Isla - NO3",
+            "source":  "5ba9bf67b188130f52ca3c49",  
+            "destination": "5dbbb60e64f1060c97525600", 
+            "upperThreshold": "2", 
+            "lowerThreshold": "0", 
+            "changingRate": "0.5"
+        },
+        {
+            "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
+            "name": "QG - Proserpine River at Glen Isla - Water Level",
+            "source":  "5853539ef63f636a107ee238",  
+            "destination": "5dbbb60e64f1060c97525603", 
+            "upperThreshold": "nan", 
+            "lowerThreshold": "0", 
+            "changingRate": "2"
+
+        },
+        {
+            "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
+            "name": "QG - Russell River at East Russell - NO3",
+            "source":  "5b7ba3e922373f0f496d610a",  
+            "destination": "5dbbb60e64f1060c97525606", 
+            "upperThreshold": "2", 
+            "lowerThreshold": "0", 
+            "changingRate": "0.5"
+        },
+        {
+            "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
+            "name": "QG - Russell River at East Russell - Water Level",
+            "source":  "5848acc5527032fe0c661db8",  
+            "destination": "5dbbb60e64f1060c97525609", 
+            "upperThreshold": "nan", 
+            "lowerThreshold": "0", 
+            "changingRate": "2"
+
+        },
+        {
+            "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
+            "name": "QG - Sandy Ck at Homebush - NO3",
+            "source":  "5b29d714e4b08310e6f98ea5",  
+            "destination": "5dbbb60e64f1060c9752560c", 
+            "upperThreshold": "2", 
+            "lowerThreshold": "0", 
+            "changingRate": "0.5"
+        },
+        {
+            "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
+            "name": "QG - Sandy Ck at Homebush - Water Level",
+            "source":  "58451ac9527032fe0c04ea08",  
+            "destination": "5dbbb60e64f1060c9752560f", 
+            "upperThreshold": "nan", 
+            "lowerThreshold": "0", 
+            "changingRate": "2"
+
+        },
+        {
+            "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
+            "name": "QG - Sandy Ck at Sorbellos Road - NO3",
+            "source":  "5c007fdaf9a3b60f5e4ffb27",  
+            "destination": "5dbbb60e64f1060c97525612", 
+            "upperThreshold": "2", 
+            "lowerThreshold": "0", 
+            "changingRate": "0.5"
+        },
+        {
+            "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
+            "name": "QG - Sandy Ck at Sorbellos Road - Water Level",
+            "source":  "5c007fddf9a3b60f5e4ffe60",  
+            "destination": "5dbbb60e64f1060c97525615", 
+            "upperThreshold": "nan", 
+            "lowerThreshold": "0", 
+            "changingRate": "2"
+
+        },
+        {
+            "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
+            "name": "QG - Tully River at Euramo - NO3",
+            "source":  "5b7c9cfe22373f0f49d1cb9e",  
+            "destination": "5dbbb60e64f1060c97525618", 
+            "upperThreshold": "2", 
+            "lowerThreshold": "0", 
+            "changingRate": "0.5"
+        },
+        {
+            "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
+            "name": "QG - Tully River at Euramo - Water Level",
+            "source":  "58771b2b8d05dcfc0cf02e66",  
+            "destination": "5dbbb60e64f1060c9752561b", 
+            "upperThreshold": "nan", 
+            "lowerThreshold": "0", 
+            "changingRate": "2"
+
+        },
+        {
+            "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
+            "name": "QG - Tully River at Tully Gorge National Park - NO3",
+            "source":  "5c9b52e97c279b10119d7259",  
+            "destination": "5dbbb60e64f1060c9752561e", 
+            "upperThreshold": "2", 
+            "lowerThreshold": "0", 
+            "changingRate": "0.5"
+        },
+        {
+            "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
+            "name": "QG - Tully River at Tully Gorge National Park - Water Level",
+            "source":  "58771b2b8d05dcfc0cf02e66",  
+            "destination": "5dbbb60e64f1060c97525621", 
+            "upperThreshold": "nan", 
+            "lowerThreshold": "0", 
+            "changingRate": "2"
+
+        },
+        {
+            "name": "xylem - bamboo creek - Estuarine-N-NO3",
+            "sensor": "opus",
+            "sourceReadApiKey": "25NB4X5DmSvoiepq2P4alkO2nusfuTwiwaLdi3bP",
+            "source":  "5bf8926ee4b080beda47449e",  
+            "destination": "5dbbd08564f1060c976bce7b", 
+            "upperThreshold": "2", 
+            "lowerThreshold": "0", 
+            "changingRate": "0.5",
+            "abs360Node": "5bf8926fe4b080beda4744b0",
+            "abs10Node": "5bf8926fe4b080beda4744b4",
+            "SQINode": "5bf89270e4b080beda4744c5"
+        },
+        {
+            "name": "xylem - bamboo creek - Fresh-N-NO3",
+            "sensor": "opus",
+            "sourceReadApiKey": "25NB4X5DmSvoiepq2P4alkO2nusfuTwiwaLdi3bP",
+            "source":  "5bf89273e4b080beda4744f3",  
+            "destination": "5dbbd08564f1060c976bce7e", 
+            "upperThreshold": "2", 
+            "lowerThreshold": "0", 
+            "changingRate": "0.5",
+            "abs360Node": "5bf89274e4b080beda474507",
+            "abs210Node": "5bf89274e4b080beda47450d",
+            "SQINode": "5bf89275e4b080beda47451e"
+        },
+        {
+            "name": "xylem - bamboo creek - WaterLevel",
+            "sourceReadApiKey": "25NB4X5DmSvoiepq2P4alkO2nusfuTwiwaLdi3bP",
+            "source":  "5bf8927ce4b080beda4745b9",  
+            "destination": "5dbbd08564f1060c976bce81", 
+            "upperThreshold": "nan", 
+            "lowerThreshold": "0", 
+            "changingRate": "2"
+        },
+        {
+            "name": "xylem - banyan creek - WaterLevel",
+            "sourceReadApiKey": "25NB4X5DmSvoiepq2P4alkO2nusfuTwiwaLdi3bP",
+            "source":  "5bf78f0fe4b0a3eb6543c530",  
+            "destination": "5dbbd08564f1060c976bce84", 
+            "upperThreshold": "nan", 
+            "lowerThreshold": "0", 
+            "changingRate": "2"
+        },
+        {
+            "name": "xylem - banyan creek - Fresh-N-NO3",
+            "sensor": "opus",
+            "sourceReadApiKey": "25NB4X5DmSvoiepq2P4alkO2nusfuTwiwaLdi3bP",
+            "source":  "5bf78f15e4b0a3eb6543c5a8",  
+            "destination": "5dbbd08564f1060c976bce87", 
+            "upperThreshold": "2", 
+            "lowerThreshold": "0", 
+            "changingRate": "0.5",
+            "abs360Node": "5bf78f16e4b0a3eb6543c5be",
+            "abs210Node": "5bf78f16e4b0a3eb6543c5c2",
+            "SQINode": "5bf78f17e4b0a3eb6543c5d3"
+        },
+        {
+            "name": "xylem - sandy creek - WaterLevel",
+            "sourceReadApiKey": "25NB4X5DmSvoiepq2P4alkO2nusfuTwiwaLdi3bP",
+            "source":  "5bf8acb4e4b0b4798102e1dc",  
+            "destination": "5dbbd08564f1060c976bce8a", 
+            "upperThreshold": "nan", 
+            "lowerThreshold": "0", 
+            "changingRate": "20"
+        },
+        {
+            "name": "xylem - sandy creek - Fresh-N-NO3",
+            "sensor": "opus",
+            "sourceReadApiKey": "25NB4X5DmSvoiepq2P4alkO2nusfuTwiwaLdi3bP",
+            "source":  "5bf8acb9e4b0b4798102e250",  
+            "destination": "5dbbd08564f1060c976bce8d", 
+            "upperThreshold": "2", 
+            "lowerThreshold": "0", 
+            "changingRate": "0.5",
+            "abs360Node": "5bf8acbae4b0b4798102e265",
+            "abs210Node": "5bf8acbae4b0b4798102e269",
+            "SQINode": "5bf8acbbe4b0b4798102e27a"
         }
         
     ]
 
 }
+
