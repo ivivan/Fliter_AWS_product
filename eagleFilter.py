@@ -1,5 +1,5 @@
 """
-version 3.1
+version 4
 """
 
 import boto3
@@ -176,8 +176,9 @@ class eagleFilter():
 
         jsonData = requests.get(self.data_api+node, headers=headers).json()
         if(jsonData.get('error') != None):
-            log.error("Error %s in loading Eagle stream metadata: %s." % 
+            log.error("Error %s for node %s in loading Eagle stream metadata: %s." %
                         (jsonData['error'].get('code'),
+                         node,
                         jsonData['error'].get('message')))
             return -1
 
@@ -411,7 +412,6 @@ class eagleFilter():
                 log.warning("Metadata could not be uploaded, put returned with error code %s: %s.",
                     json.loads(result.text).get('error').get('code'),
                     json.loads(result.text).get('error').get('message'))
-            print(result.text)
         except ConnectionError as e:
             result = -1
             print(e)

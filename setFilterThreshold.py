@@ -85,4 +85,3 @@ def main(event, context):
 
     ea.uploadDirectAWSJSON('digiscapegbr', 'filterSettings', 'filterSettings.json', settings)
     return 0
-

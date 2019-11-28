@@ -12,15 +12,15 @@
       "destination": "5ca2a9604c52c40f17064db1",
       "upperThreshold": "nan",
       "lowerThreshold": "0",
-      "changingRate": "0.031400000000000074"
+      "changingRate": "0.006000000000000005"
     },
     {
       "name": "p25 - behana creek - ROM-NO3-N",
       "source": "5c3578fc1bbcf10f7880ca5f",
       "destination": "5ca2a9604c52c40f17064db3",
-      "upperThreshold": "0.38403999999999905",
+      "upperThreshold": "0.3451999999999989",
       "lowerThreshold": "0",
-      "changingRate": "0.11407999999999993",
+      "changingRate": "0.011649999999999628",
       "sensor": "nico",
       "refANode": "5c3578fc1bbcf10f7880ca62",
       "refBNode": "5c3578fc1bbcf10f7880ca63",
@@ -55,16 +55,16 @@
       "destination": "5dbbb60e64f1060c975255eb",
       "upperThreshold": "nan",
       "lowerThreshold": "0",
-      "changingRate": "0.08999999999999986"
+      "changingRate": "0.08000000000000185"
     },
     {
       "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
       "name": "QG - Mulgrave River at Deeral - NO3",
       "source": "5b7f3c69eac9650f01ce09f7",
       "destination": "5dbbb60e64f1060c975255ee",
-      "upperThreshold": "0.412",
+      "upperThreshold": "0.332",
       "lowerThreshold": "0",
-      "changingRate": "0.097"
+      "changingRate": "0.07844999999999994"
     },
     {
       "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
@@ -73,16 +73,16 @@
       "destination": "5dbbb60e64f1060c975255f1",
       "upperThreshold": "nan",
       "lowerThreshold": "0",
-      "changingRate": "0.08000000000000007"
+      "changingRate": "0.07000000000000028"
     },
     {
       "name": "QG - Pioneer at Dumbleton - NO3",
       "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
       "source": "5d70772663e53d0c8b7b71c0",
       "destination": "5dbbb60e64f1060c975255f4",
-      "upperThreshold": "0.1",
+      "upperThreshold": "0.092",
       "lowerThreshold": "0",
-      "changingRate": "0.016"
+      "changingRate": "0.012000000000000004"
     },
     {
       "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
@@ -116,9 +116,9 @@
       "name": "QG - Proserpine River at Glen Isla - NO3",
       "source": "5ba9bf67b188130f52ca3c49",
       "destination": "5dbbb60e64f1060c97525600",
-      "upperThreshold": "0.652",
+      "upperThreshold": "0.6659999999999998",
       "lowerThreshold": "0",
-      "changingRate": "4.261"
+      "changingRate": "4.292"
     },
     {
       "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
@@ -127,16 +127,16 @@
       "destination": "5dbbb60e64f1060c97525603",
       "upperThreshold": "nan",
       "lowerThreshold": "0",
-      "changingRate": "0.25"
+      "changingRate": "0.1999999999999993"
     },
     {
       "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
       "name": "QG - Russell River at East Russell - NO3",
       "source": "5b7ba3e922373f0f496d610a",
       "destination": "5dbbb60e64f1060c97525606",
-      "upperThreshold": "3.0925599999999998",
+      "upperThreshold": "3.062",
       "lowerThreshold": "0",
-      "changingRate": "1.475"
+      "changingRate": "1.48"
     },
     {
       "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
@@ -145,16 +145,16 @@
       "destination": "5dbbb60e64f1060c97525609",
       "upperThreshold": "nan",
       "lowerThreshold": "0",
-      "changingRate": "0.08999999999999986"
+      "changingRate": "0.08099999999999619"
     },
     {
       "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
       "name": "QG - Sandy Ck at Homebush - NO3",
       "source": "5b29d714e4b08310e6f98ea5",
       "destination": "5dbbb60e64f1060c9752560c",
-      "upperThreshold": "1.92084",
+      "upperThreshold": "1.0126",
       "lowerThreshold": "0",
-      "changingRate": "0.07200000000000001"
+      "changingRate": "0.059349999999999944"
     },
     {
       "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
@@ -163,7 +163,7 @@
       "destination": "5dbbb60e64f1060c9752560f",
       "upperThreshold": "nan",
       "lowerThreshold": "0",
-      "changingRate": "0.006000000000000005"
+      "changingRate": "0.0020000000000000018"
     },
     {
       "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
@@ -181,16 +181,16 @@
       "destination": "5dbbb60e64f1060c97525615",
       "upperThreshold": "nan",
       "lowerThreshold": "0",
-      "changingRate": "0.0050000000000001155"
+      "changingRate": "0.0030000000000001137"
     },
     {
       "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
       "name": "QG - Tully River at Euramo - NO3",
       "source": "5b7c9cfe22373f0f49d1cb9e",
       "destination": "5dbbb60e64f1060c97525618",
-      "upperThreshold": "0.428",
+      "upperThreshold": "0.374",
       "lowerThreshold": "0",
-      "changingRate": "0.11967999999999845"
+      "changingRate": "0.023549999999999894"
     },
     {
       "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
@@ -199,16 +199,16 @@
       "destination": "5dbbb60e64f1060c9752561b",
       "upperThreshold": "nan",
       "lowerThreshold": "0",
-      "changingRate": "0.04400000000000004"
+      "changingRate": "0.039000000000000146"
     },
     {
       "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
       "name": "QG - Tully River at Tully Gorge National Park - NO3",
       "source": "5c9b52e97c279b10119d7259",
       "destination": "5dbbb60e64f1060c9752561e",
-      "upperThreshold": "0.034",
+      "upperThreshold": "0.00809999999999991",
       "lowerThreshold": "0",
-      "changingRate": "0.005"
+      "changingRate": "0.004"
     },
     {
       "sourceReadApiKey": "Kx6QeHisLoL3DAxTUViAfJx58eGRa5N7iDv57Pm3",
@@ -217,7 +217,7 @@
       "destination": "5dbbb60e64f1060c97525621",
       "upperThreshold": "nan",
       "lowerThreshold": "0",
-      "changingRate": "0.04400000000000004"
+      "changingRate": "0.039000000000000146"
     },
     {
       "name": "xylem - bamboo creek - Estuarine-N-NO3",
@@ -225,9 +225,9 @@
       "sourceReadApiKey": "25NB4X5DmSvoiepq2P4alkO2nusfuTwiwaLdi3bP",
       "source": "5bf8926ee4b080beda47449e",
       "destination": "5dbbd08564f1060c976bce7b",
-      "upperThreshold": "1.4554400000000005",
+      "upperThreshold": "0.39",
       "lowerThreshold": "0",
-      "changingRate": "0.29973999999999973",
+      "changingRate": "0.05084999999999991",
       "abs360Node": "5bf8926fe4b080beda4744b0",
       "abs10Node": "5bf8926fe4b080beda4744b4",
       "SQINode": "5bf89270e4b080beda4744c5"
@@ -238,9 +238,9 @@
       "sourceReadApiKey": "25NB4X5DmSvoiepq2P4alkO2nusfuTwiwaLdi3bP",
       "source": "5bf89273e4b080beda4744f3",
       "destination": "5dbbd08564f1060c976bce7e",
-      "upperThreshold": "1.084",
+      "upperThreshold": "0.164",
       "lowerThreshold": "0",
-      "changingRate": "0.08449999999999998",
+      "changingRate": "0.0059999999999999915",
       "abs360Node": "5bf89274e4b080beda474507",
       "abs210Node": "5bf89274e4b080beda47450d",
       "SQINode": "5bf89275e4b080beda47451e"
@@ -252,7 +252,7 @@
       "destination": "5dbbd08564f1060c976bce81",
       "upperThreshold": "nan",
       "lowerThreshold": "-5.699",
-      "changingRate": "0.044999999999999984"
+      "changingRate": "0.05400000000000005"
     },
     {
       "name": "xylem - banyan creek - WaterLevel",
@@ -261,7 +261,7 @@
       "destination": "5dbbd08564f1060c976bce84",
       "upperThreshold": "nan",
       "lowerThreshold": "0",
-      "changingRate": "0.007000000000000117"
+      "changingRate": "0.003999999999999954"
     },
     {
       "name": "xylem - banyan creek - Fresh-N-NO3",
@@ -269,9 +269,9 @@
       "sourceReadApiKey": "25NB4X5DmSvoiepq2P4alkO2nusfuTwiwaLdi3bP",
       "source": "5bf78f15e4b0a3eb6543c5a8",
       "destination": "5dbbd08564f1060c976bce87",
-      "upperThreshold": "0.554",
+      "upperThreshold": "0.3456999999999998",
       "lowerThreshold": "0",
-      "changingRate": "0.014000000000000012",
+      "changingRate": "0.008900000000000075",
       "abs360Node": "5bf78f16e4b0a3eb6543c5be",
       "abs210Node": "5bf78f16e4b0a3eb6543c5c2",
       "SQINode": "5bf78f17e4b0a3eb6543c5d3"
@@ -283,7 +283,7 @@
       "destination": "5dbbd08564f1060c976bce8a",
       "upperThreshold": "nan",
       "lowerThreshold": "0",
-      "changingRate": "0.002999999999999896"
+      "changingRate": "0.0020000000000000018"
     },
     {
       "name": "xylem - sandy creek - Fresh-N-NO3",
@@ -291,9 +291,9 @@
       "sourceReadApiKey": "25NB4X5DmSvoiepq2P4alkO2nusfuTwiwaLdi3bP",
       "source": "5bf8acb9e4b0b4798102e250",
       "destination": "5dbbd08564f1060c976bce8d",
-      "upperThreshold": "0.6820399999999991",
+      "upperThreshold": "0.184",
       "lowerThreshold": "0",
-      "changingRate": "0.01100000000000001",
+      "changingRate": "0.009999999999999995",
       "abs360Node": "5bf8acbae4b0b4798102e265",
       "abs210Node": "5bf8acbae4b0b4798102e269",
       "SQINode": "5bf8acbbe4b0b4798102e27a"
