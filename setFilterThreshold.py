@@ -26,6 +26,8 @@ def main(event, context):
     for node in nodes:
         source = node['source']
         name = node["name"]
+        log.debug(name)
+
         try:
             api_key = node['sourceReadApiKey']
             ea.setApiReadKey(api_key)
@@ -46,6 +48,8 @@ def main(event, context):
             level = 1
         if(("no3" in name.lower()) or ("nitrate" in name.lower())):
             nitrate = 1
+        if not "sandy" in name.lower():
+            continue
 
         # if this is neither a waterlevel nor nitrate node no changes required
         # move onto the next node immediately
@@ -61,21 +65,26 @@ def main(event, context):
 
         # print(source_metadata['currentTime'])
         # Window is set here in the timedelta(days=WINDOW)
-        historical_data = ea.getData(source, source_metadata['currentTime'] - timedelta(days=178), source_metadata['currentTime'])
+        historical_data = ea.getData(source, source_metadata['currentTime'] - timedelta(days=60), source_metadata['currentTime'])
         if (historical_data) == -1:
             continue
 
         # seperate out values in node from dates
         values = np.asarray(historical_data)[:,1].astype(float)
 
+        # if there are too few values in the specified interval the percentile cannot be calculated
+        if len(values) < 24:
+            continue
+
         if(nitrate):
-            upper_threshold = 2*np.percentile(values, 98)
+            upper_threshold = 2*np.percentile(values, 95)
             node['upperThreshold'] = str(upper_threshold)
 
         if(nitrate or level): # should always test true
             rate_of_change = abs(np.diff(values))
-            rate_threshold = 1*np.percentile(rate_of_change, 98)
+            rate_threshold = 1*np.percentile(rate_of_change, 95)
             node['changingRate'] = str(rate_threshold)
 
     ea.uploadDirectAWSJSON('digiscapegbr', 'filterSettings', 'filterSettings.json', settings)
     return 0
+
