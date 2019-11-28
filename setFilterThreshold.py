@@ -48,8 +48,6 @@ def main(event, context):
             level = 1
         if(("no3" in name.lower()) or ("nitrate" in name.lower())):
             nitrate = 1
-        if not "sandy" in name.lower():
-            continue
 
         # if this is neither a waterlevel nor nitrate node no changes required
         # move onto the next node immediately
