@@ -23,6 +23,59 @@ Note:
     This is for now unaddressed
 """
 
+
+def smooth(x, window_len=11, window='hanning'):
+    """smooth the data using a window with requested size. From the SciPi cookbook.
+
+    This method is based on the convolution of a scaled window with the signal.
+    The signal is prepared by introducing reflected copies of the signal
+    (with the window size) in both ends so that transient parts are minimized
+    in the begining and end part of the output signal.
+
+    input:
+        x: the input signal
+        window_len: the dimension of the smoothing window; should be an odd integer
+        window: the type of window from 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'
+            flat window will produce a moving average smoothing.
+
+    output:
+        the smoothed signal
+
+    example:
+
+    t=linspace(-2,2,0.1)
+    x=sin(t)+randn(len(t))*0.1
+    y=smooth(x)
+    """
+
+    if x.ndim != 1:
+        # avoid raising exceptions where possible to avoid reruns of the lambda function when they will not have a
+        # different result
+        log.error(ValueError("Smooth only accepts 1 dimension arrays. No smoothing applied."))
+        return x
+
+    if x.size < window_len:
+        log.error(ValueError("Input vector needs to be bigger than window size. No smoothing applied."))
+        return x
+
+    if window_len < 3:
+        return x
+
+    if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
+        log.error(ValueError("Window is one of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman' No smoothing applied."))
+        return x
+
+    s = np.r_[x[window_len - 1:0:-1], x, x[-2:-window_len - 1:-1]]
+
+    if window == 'flat':  # moving average
+        w = np.ones(window_len, 'd')
+    else:
+        w = eval('np.' + window + '(window_len)')
+
+    y = np.convolve(w / w.sum(), s, mode='valid')
+    return y
+
+
 # this could likely be more efficient
 def mask_nan(mask, n):
     """ Sets values to False if there are more than n consecutive True values
@@ -454,7 +507,10 @@ def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode,
                 refANode, refBNode, refCNode, refDNode, SQINode, input_dates, 
                 src_read_api_key)
 
-        # Create JTS JSON time series of filtered data  
+        # Smoothing
+        filtered_data = smooth(filtered_data, window_len=24)
+
+        # Create JTS JSON time series of filtered data
         ts = ea_src.createTimeSeriesQualityJSON(data,filtered_data, quality)
 
         # update destination on Eagle with filtered data
@@ -589,10 +645,10 @@ if __name__ == "__main__":
 
     # # For running on/testing one sns message
     # # output on column 3
-    # test = {'Records': [{'EventSource': 'aws:sns', 
-    #             'EventVersion': '1.0', 'EventSubscriptionArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'Sns': {'Type': 'Notification', 'MessageId': 'bc85683f-2efc-50c6-8314-3d51aff722d2', 'TopicArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate', 
-    #             'Subject': None, 
-    #             'Message': '{"name": "p25 - behana creek - ROM-NO3-N", "refANode": "5c3578fc1bbcf10f7880ca62", "refBNode": "5c3578fc1bbcf10f7880ca63", "refCNode": "5c3578fc1bbcf10f7880ca64", "refDNode": "5c3578fc1bbcf10f7880ca65", "SQINode": "5c3578fc1bbcf10f7880ca61","sensor": "nico", "source":"5c3578fc1bbcf10f7880ca5f", "destination":"5ca2a9604c52c40f17064db0", "upperThreshold": "2", "lowerThreshold": "0", "changingRate": "0.05"}', 
+    # test = {'Records': [{'EventSource': 'aws:sns',
+    #             'EventVersion': '1.0', 'EventSubscriptionArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'Sns': {'Type': 'Notification', 'MessageId': 'bc85683f-2efc-50c6-8314-3d51aff722d2', 'TopicArn': 'arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate',
+    #             'Subject': None,
+    #             'Message': '{"name": "p25 - behana creek - ROM-NO3-N", "refANode": "5c3578fc1bbcf10f7880ca62", "refBNode": "5c3578fc1bbcf10f7880ca63", "refCNode": "5c3578fc1bbcf10f7880ca64", "refDNode": "5c3578fc1bbcf10f7880ca65", "SQINode": "5c3578fc1bbcf10f7880ca61","sensor": "nico", "source":"5c3578fc1bbcf10f7880ca5f", "destination":"5ca2a9604c52c40f17064db0", "upperThreshold": "2", "lowerThreshold": "0", "changingRate": "0.05"}',
     #             'Timestamp': '2019-06-03T01:58:35.515Z', 'SignatureVersion': '1', 'Signature': 'MD2dPjKLTGTijU1s+vPuE699sSM7vquQHQFpVBtqECLEX+4psmZeT7oAMSZY5yCAtS2QKesiE4/lR9ezBENfmmTy/TrWyqguyY+4RO121nzlMWN3FN/IPdbNJU2yvsYby7//PwIJDvgN2KgoAhZPoW92bJtFAxOlMKmnNSsfCPM7lH0FF4M2pyvmzbyauFoFhJfdr0hRWfcPnmmMSusr8rc9Y0wdEtR37qexQ99GR8w2KWMZE8VWPNc8ZdXSeE3sLv7floxaxCIqWcS3nm6pJiN/B0YzDBIJvVEIa492qKm8lPd34MCRG6lLH05VJw3KwkOQLbabpJoP43lKhDZdkQ==', 'SigningCertUrl': 'https://sns.ap-southeast-2.amazonaws.com/SimpleNotificationService-6aad65c2f9911b05cd53efda11f913f9.pem', 'UnsubscribeUrl': 'https://sns.ap-southeast-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'MessageAttributes': {}}}]}
     
     # main(test, None)
