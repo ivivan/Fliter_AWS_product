@@ -161,18 +161,34 @@ class eagleFilter():
 
         return data
 
-
-    #this function is the base funtion to retreive metadatd from Eagle.
+    # This function is the base funtion to retreive metadata from Eagle.
     def getLocationMetadata(self, node):
-        """ Base funtion to retreive metadatd from Eagle."""
+        """
+        Retreive metadatd from Eagle. Metadata is filtered to and significant dates are returned
+
+        :param node: node Id of the target node
+        :return: dictionary with values for 'oldestTime', 'currentTime', 'obsInterval', 'previousTime', and
+                'lastFiltered'. lastFiltered and currentTime may be 0 if there is no previous data. Values will be None
+                if any cannot be parsed as dates.
+        """
+
         headers = {'X-Api-Key': self.api_read_key}
 
         jsonData = requests.get(self.data_api+node, headers=headers).json()
         if(jsonData.get('error') != None):
             log.error("Error %s in loading Eagle stream metadata: %s." % 
-                        (jsonData['error'].get('code'), 
+                        (jsonData['error'].get('code'),
                         jsonData['error'].get('message')))
             return -1
+
+        try:
+            metadata = jsonData["metadata"]
+            # the metadata is a list of dictionaries and we want the dictionary where the name key has value
+            # lastFiltered. Result of the lambda: [{'name' : 'lastFiltered', 'value': ...}]
+            lastFilteredMetadata = list(filter(lambda metadata: metadata['name'] == 'lastFiltered', metadata))[0]
+            lastFiltered = datetime.strptime(lastFilteredMetadata['value'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(microsecond=0)
+        except:
+            lastFiltered = 0
 
         try:
             currentTime = datetime.strptime(jsonData['currentTime'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(microsecond=0)
@@ -186,9 +202,29 @@ class eagleFilter():
             obsInterval = None
 
         returnData = { 'oldestTime':oldestTime, 'currentTime':currentTime,
-                       'obsInterval': obsInterval, 'previousTime':prevTime}
+                       'obsInterval': obsInterval, 'previousTime':prevTime, 'lastFiltered' : lastFiltered}
 
         return returnData
+
+    def getMetadata(self, node):
+        """
+        Base funtion to retreive metadatd from Eagle.
+
+        :param node: node Id for target node
+        :return: result from request or -1 if there is an error
+        """
+
+        headers = {'X-Api-Key': self.api_read_key}
+
+        jsonData = requests.get(self.data_api + node, headers=headers).json()
+        if (jsonData.get('error') != None):
+            log.error("Error %s in loading Eagle stream metadata: %s." %
+                      (jsonData['error'].get('code'),
+                       jsonData['error'].get('message')))
+            return -1
+
+        return jsonData
+
 
     # this function is the base funtion to retreive current and prevtime from Eagle.
     def getcurrentPrevTime(self, node):
@@ -334,25 +370,53 @@ class eagleFilter():
         return result
     
 
-    #Update Eagle
-    def updateMetadata(self,node,metadata):
+    # Update Eagle metadata
+    def updateMetadata(self, metadata):
         #cannot update Location
         #make sure to use write API key
-        headers = {'X-Api-Key': self.api_write_key,'Content-Type':'application/json'}
+        headers = {'X-Api-Key': self.api_write_key, 'Content-Type': 'application/json'}
 
         try:
-
             result = requests.put(self.data_api, data=metadata, headers=headers, timeout=2.0)
             if(result.ok != True):
-                log.warning("Metadata could not be uploaded, put returned with error code %s: %s.", 
-                    json.loads(result.text).get('error').get('code'), 
+                log.warning("Metadata could not be uploaded, put returned with error code %s: %s.",
+                    json.loads(result.text).get('error').get('code'),
                     json.loads(result.text).get('error').get('message'))
-         
+
         except ConnectionError as e:
             result = -1
             print(e)
             #raise
 
-        return   result
+        return result
+
+    #
+    def updateLocationMetadata(self, node, metadata):
+        """
+        Update Eagle Metadata for a particular Node
+
+        :param node: target node
+        :param metadata: json string with the parentId and metadata as a list of dictionaries
+                            {"parentId" : "....",
+                             "metadata": [{"name": "...", "value": "..."}, {"name": "...", "value": "..."}}
+        :return: response from eagle.io or -1 if there is a connection error
+        """
+        #cannot update Location
+        #make sure to use write API key
+        headers = {'X-Api-Key': self.api_write_key,'Content-Type':'application/json'}
+
+        try:
+            result = requests.put(self.data_api + node, data=metadata, headers=headers, timeout=2.0)
+            if(result.ok != True):
+                log.warning("Metadata could not be uploaded, put returned with error code %s: %s.",
+                    json.loads(result.text).get('error').get('code'),
+                    json.loads(result.text).get('error').get('message'))
+            print(result.text)
+        except ConnectionError as e:
+            result = -1
+            print(e)
+            #raise
+
+        return result
 
 

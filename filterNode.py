@@ -466,20 +466,20 @@ def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode,
         return 0
 
     # destination node is empty
-    if(dest_metadata['currentTime'] == 0):
+    if(dest_metadata['lastFiltered'] == 0):
         # use all of the available data
         log.warning("Empty time fields in destination node, requesting all source data.")
-        dest_metadata['currentTime'] = source_metadata['oldestTime']
+        dest_metadata['lastFiltered'] = source_metadata['oldestTime']
     
     ### for testing filtering all
     #dest_metadata['currentTime'] = source_metadata['oldestTime']
     ### for testing when already filtered
-    dest_metadata['currentTime'] = source_metadata['currentTime'] - timedelta(days=5)
+    # dest_metadata['currentTime'] = source_metadata['currentTime'] - timedelta(days=5)
 
     # check that there is new data
-    if dest_metadata['currentTime'] < source_metadata['currentTime']:
+    if dest_metadata['lastFiltered'] < source_metadata['currentTime']:
         # get all new data plus a delay window
-        start_time =  dest_metadata['currentTime'] - timedelta(days=FILTER_MIN_WINDOW)
+        start_time =  dest_metadata['lastFiltered'] - timedelta(days=FILTER_MIN_WINDOW)
         finish_time = source_metadata['currentTime']
        
         # the get in the eagle api is not inclusive so add one second to 
@@ -508,10 +508,21 @@ def filter_data(source_node, dest_node, refANode, refBNode, refCNode, refDNode,
                 src_read_api_key)
 
         # Smoothing
-        filtered_data = smooth(filtered_data, window_len=24)
+        # filtered_data = smooth(filtered_data, window_len=24)
 
         # Create JTS JSON time series of filtered data
         ts = ea_src.createTimeSeriesQualityJSON(data,filtered_data, quality)
+
+        # Update last filtered date in metadata
+        currentMetadata = ea_dest.getMetadata(dest_node) # for the parentId
+        newMetadata = {}
+        newMetadata['parentId'] = currentMetadata["parentId"]
+        newMetadata['metadata'] = [{
+            'name': 'lastFiltered',
+            'value': datetime.strftime(finish_time, '%Y-%m-%dT%H:%M:%S.%fZ')
+        }]
+
+        ea_dest.updateLocationMetadata(dest_node, json.dumps(newMetadata))
 
         # update destination on Eagle with filtered data
         res = ea_dest.updateData(dest_node, ts)
@@ -650,7 +661,7 @@ if __name__ == "__main__":
     #             'Subject': None,
     #             'Message': '{"name": "p25 - behana creek - ROM-NO3-N", "refANode": "5c3578fc1bbcf10f7880ca62", "refBNode": "5c3578fc1bbcf10f7880ca63", "refCNode": "5c3578fc1bbcf10f7880ca64", "refDNode": "5c3578fc1bbcf10f7880ca65", "SQINode": "5c3578fc1bbcf10f7880ca61","sensor": "nico", "source":"5c3578fc1bbcf10f7880ca5f", "destination":"5ca2a9604c52c40f17064db0", "upperThreshold": "2", "lowerThreshold": "0", "changingRate": "0.05"}',
     #             'Timestamp': '2019-06-03T01:58:35.515Z', 'SignatureVersion': '1', 'Signature': 'MD2dPjKLTGTijU1s+vPuE699sSM7vquQHQFpVBtqECLEX+4psmZeT7oAMSZY5yCAtS2QKesiE4/lR9ezBENfmmTy/TrWyqguyY+4RO121nzlMWN3FN/IPdbNJU2yvsYby7//PwIJDvgN2KgoAhZPoW92bJtFAxOlMKmnNSsfCPM7lH0FF4M2pyvmzbyauFoFhJfdr0hRWfcPnmmMSusr8rc9Y0wdEtR37qexQ99GR8w2KWMZE8VWPNc8ZdXSeE3sLv7floxaxCIqWcS3nm6pJiN/B0YzDBIJvVEIa492qKm8lPd34MCRG6lLH05VJw3KwkOQLbabpJoP43lKhDZdkQ==', 'SigningCertUrl': 'https://sns.ap-southeast-2.amazonaws.com/SimpleNotificationService-6aad65c2f9911b05cd53efda11f913f9.pem', 'UnsubscribeUrl': 'https://sns.ap-southeast-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:ap-southeast-2:410693452224:gbrNodeUpdate:1cc5186a-04cc-430a-8065-fa438521d082', 'MessageAttributes': {}}}]}
-    
+    #
     # main(test, None)
 
 
