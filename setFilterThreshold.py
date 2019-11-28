@@ -13,7 +13,8 @@ def main(event, context):
       
     # get all node from S3
     ea = eagle()
-    # ea.setLoadLimit() # change the number of data points requested
+    # ea.setLoadLimit(2000) # change the number of data points requested
+
     try:
         settings = ea.getFileAWSJSON('digiscapegbr', 'filterSettings', 'filterSettings.json')
     except Exception as e:
@@ -28,6 +29,13 @@ def main(event, context):
         try:
             api_key = node['sourceReadApiKey']
             ea.setApiReadKey(api_key)
+        except:
+            pass
+
+        try:
+            manual_setting = node['thresholdManualSetting']
+            if manual_setting == "True":
+                continue
         except:
             pass
 
@@ -50,8 +58,9 @@ def main(event, context):
         if (source_metadata['currentTime']==0):
             # potentially empty node or some other issue
             continue
-        # ? do we want from olderst time or last month or last year ext
-        print(source_metadata['currentTime'] )
+
+        # print(source_metadata['currentTime'])
+        # Window is set here in the timedelta(days=WINDOW)
         historical_data = ea.getData(source, source_metadata['currentTime'] - timedelta(days=178), source_metadata['currentTime'])
         if (historical_data) == -1:
             continue
@@ -70,4 +79,3 @@ def main(event, context):
 
     ea.uploadDirectAWSJSON('digiscapegbr', 'filterSettings', 'filterSettings.json', settings)
     return 0
-
