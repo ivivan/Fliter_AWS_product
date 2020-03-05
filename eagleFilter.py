@@ -87,7 +87,7 @@ class eagleFilter():
             's3',
             region_name='ap-southeast-2',
             aws_access_key_id='',
-            aws_secret_access_key='cDrq6D//PsrA0QkFBfW2CezUt2LDgRL+lyQApsEa',
+            aws_secret_access_key='',
         )
 
         fname = open(filename, 'r')
@@ -109,7 +109,7 @@ class eagleFilter():
             's3',
             region_name='ap-southeast-2',
             aws_access_key_id='',
-            aws_secret_access_key='cDrq6D//PsrA0QkFBfW2CezUt2LDgRL+lyQApsEa',
+            aws_secret_access_key='',
 
         )
         client.Object(bucket_name, directory+ '/' +filename).put(
@@ -129,7 +129,7 @@ class eagleFilter():
             's3',
             region_name='ap-southeast-2',
             aws_access_key_id='',
-            aws_secret_access_key='cDrq6D//PsrA0QkFBfW2CezUt2LDgRL+lyQApsEa',
+            aws_secret_access_key='',
         )
 
         try:
